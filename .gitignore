@@ -1,0 +1,65 @@
+# ==================================================
+# AI Document Search Pro — Git Ignore Rules
+# Infosys Project Standard
+# ==================================================
+
+# ------------------------------
+# Python
+# ------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+
+# Virtual Environments
+venv/
+.venv/
+
+# Environment Variables / Secrets
+.env
+.env.*
+*.key
+*.pem
+
+# ------------------------------
+# Streamlit
+# ------------------------------
+.streamlit/
+
+# ------------------------------
+# Application Data
+# ------------------------------
+data/uploads/*
+!data/uploads/.gitkeep
+
+vectorstore/
+*.db
+
+# ------------------------------
+# Logs
+# ------------------------------
+*.log
+
+# ------------------------------
+# OS Files
+# ------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ------------------------------
+# IDE / Editor
+# ------------------------------
+.vscode/
+.idea/
+*.swp
+
+# ------------------------------
+# Docker (future proof)
+# ------------------------------
+Dockerfile
+docker-compose.yml
