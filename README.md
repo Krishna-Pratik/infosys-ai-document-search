@@ -1,3 +1,8 @@
+![Python](https://img.shields.io/badge/Python-3.10+-blue)
+![Streamlit](https://img.shields.io/badge/Streamlit-App-red)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Status](https://img.shields.io/badge/Status-Production--Ready-brightgreen)
+
 # 🚀 Infosys AI Document Search Platform
 
 An enterprise-grade AI-powered document analysis and question-answering platform built using **Retrieval Augmented Generation (RAG)** architecture, **Streamlit UI**, and a resilient multi-provider Large Language Model (LLM) strategy powered by **Google Gemini** with automatic fallback to **xAI Grok**.
@@ -103,8 +108,8 @@ infosys-ai-document-intelligence/
 
 Clone Repository:
 
-git clone https://github.com/<your-username>/infosys-ai-document-intelligence.git  
-cd infosys-ai-document-intelligence  
+git clone https://github.com/Krishna-Pratik/infosys-ai-document-search.git  
+cd infosys-ai-document-search  
 
 Create Virtual Environment:
 
