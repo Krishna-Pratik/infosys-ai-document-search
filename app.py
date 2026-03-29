@@ -1,81 +1,621 @@
+# ==============================================================================
+# IMPORTS
+# ==============================================================================
 import streamlit as st
 import os
 import json
-import base64
 import hashlib
 import shutil
+import time
+import re
+import html
 from datetime import datetime
 from dotenv import load_dotenv
 
+# Local utility imports
 from utils.loader import load_documents
 from utils.splitter import split_documents
-from utils.model_manager import get_llm
-from langchain_core.prompts import ChatPromptTemplate
-
-from utils.embeddings import (
-    create_vectorstore,
-    load_vectorstore,
-)
+from utils.embeddings import create_vectorstore, load_vectorstore
 from utils.rag_chain import build_rag_chain
 from utils.reset import reset_app
 
-
-# --------------------------------------------------
-# ENV + PAGE CONFIG
-# --------------------------------------------------
-
+# ==============================================================================
+# APP CONFIGURATION
+# ==============================================================================
+# Load environment variables from a .env file for security
 load_dotenv()
-st.set_page_config(page_title="AI Document Search Pro", layout="wide")
 
+# Configure the Streamlit page
+st.set_page_config(
+    page_title="AI Document Search Pro",
+    page_icon="🔍",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# --------------------------------------------------
-# CSS — PIN INPUT
-# --------------------------------------------------
+# Define constants for directory paths to ensure consistency
+UPLOAD_DIR = "data/uploads"
+VECTOR_DIR = "vectorstore"
 
+# ==============================================================================
+# STYLING
+# ==============================================================================
+# Inject custom CSS for a modern, polished look.
+# This includes animations, design tokens (variables), and styles for all UI
+# components like sidebar, buttons, chat messages, etc.
 st.markdown("""
 <style>
+/* ==================================================
+   ANIMATIONS
+   ================================================== */
 
-.main .block-container {
-    padding-bottom: 11rem;
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* ==================================================
+   DESIGN TOKENS
+   ================================================== */
 
 :root {
-    --sidebar-width: 21rem;
+    --bg-primary: #030712;
+    --bg-secondary: #0B0F19;
+    --accent-primary: #6366F1;
+    --accent-secondary: #22D3EE;
+    --accent-purple: #A855F7;
+    
+    --gradient-main: linear-gradient(135deg, #6366F1 0%, #22D3EE 50%, #A855F7 100%);
+    --gradient-text: linear-gradient(135deg, #6366F1 0%, #22D3EE 50%, #A855F7 100%);
+    --gradient-bg: linear-gradient(-45deg, #060912, #0B0F19, #160e34, #0f172a);
+    
+    --text-primary: #F3F4F6;
+    --text-secondary: #9CA3AF;
+    --text-muted: #6B7280;
+    
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-glow: rgba(99, 102, 241, 0.3);
+    
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
 }
 
-div[data-testid="stChatInput"] {
+/* ==================================================
+   BASE STYLES
+   ================================================== */
+
+* { box-sizing: border-box; }
+
+/* App background */
+.stApp {
+    background: var(--gradient-bg);
+    background-size: 200% 200%;
+    animation: gradientShift 25s ease infinite;
+}
+
+/* Main content - compact */
+.main .block-container {
+    padding-top: 2rem;
+    padding-bottom: 10rem;
+    max-width: 1200px !important;
+    margin: auto;
+}
+
+/* ==================================================
+   SIDEBAR — SAFE DEFAULTS
+   ================================================== */
+
+/* Force sidebar to stay expanded */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, rgba(11, 15, 25, 0.98) 0%, rgba(17, 24, 39, 0.95) 100%);
+    border-right: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+[data-testid="stSidebar"] .block-container {
+    padding: 2rem;
+}
+
+/* Keep Streamlit's native sidebar controls visible.
+   Hiding these can also hide the sidebar container in some Streamlit versions. */
+
+/* ==================================================
+   HIDE STREAMLIT CHROME
+   ================================================== */
+
+/* header[data-testid="stHeader"] { visibility: hidden; height: 0; } */
+footer[data-testid="stFooter"] { visibility: hidden; height: 0; }
+/* #MainMenu { display: none !important; } */
+[data-testid="stDecoration"] { display: none; }
+
+/* ==================================================
+   HERO SECTION
+   ================================================== */
+
+.hero-glow {
+    padding: 1rem 0;
+    margin-bottom: 0.5rem;
+}
+
+.hero-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    background: var(--gradient-text);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.02em;
+    animation: shimmer 3s linear infinite;
+    margin: 0;
+}
+
+.hero-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin: 0.25rem 0 0 0;
+}
+
+.divider-glow {
+    height: 1px;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(99, 102, 241, 0.4) 20%,
+        rgba(34, 211, 238, 0.4) 50%,
+        transparent 100%
+    );
+    margin: 0.5rem 0 0.75rem 0;
+}
+
+/* ==================================================
+   TABS
+   ================================================== */
+
+[data-testid="stTabs"] {
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 0.75rem;
+}
+
+[data-testid="stTabs"] [role="tablist"] {
+    gap: 0.375rem;
+    background: rgba(17, 24, 39, 0.5);
+    padding: 0.25rem;
+    border-radius: var(--radius-md);
+    display: inline-flex;
+}
+
+[data-testid="stTabs"] [role="tab"] {
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 0.5rem 1rem;
+    transition: all 0.3s ease;
+}
+
+[data-testid="stTabs"] [role="tab"]:hover {
+    color: var(--text-primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
+    background: var(--gradient-main);
+    color: white;
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
+}
+
+/* ==================================================
+   BUTTONS
+   ================================================== */
+
+.stButton > button {
+    background: var(--gradient-main);
+    border: none;
+    border-radius: var(--radius-md);
+    color: white;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 0.625rem 1.25rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 3px 12px rgba(99, 102, 241, 0.4);
+}
+
+.stButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 18px rgba(99, 102, 241, 0.5);
+}
+
+/* Sidebar buttons */
+[data-testid="stSidebar"] .stButton > button {
+    width: 100%;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(34, 211, 238, 0.1) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    margin-bottom: 0.625rem;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.775rem;
+}
+
+[data-testid="stSidebar"] .stButton > button:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(34, 211, 238, 0.15) 100%);
+    border-color: var(--accent-primary);
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+/* ==================================================
+   FILE UPLOADER
+   ================================================== */
+
+[data-testid="stSidebar"] [data-testid="stFileUploader"] {
+    background: linear-gradient(135deg, rgba(17, 24, 39, 0.8) 0%, rgba(27, 35, 50, 0.6) 100%);
+    border: 2px dashed rgba(99, 102, 241, 0.3);
+    border-radius: var(--radius-md);
+    padding: 0.875rem;
+    transition: all 0.3s ease;
+    margin-bottom: 0.75rem;
+}
+
+[data-testid="stSidebar"] [data-testid="stFileUploader"]:hover {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+}
+
+/* ==================================================
+   CHAT MESSAGES
+   ================================================== */
+
+[data-testid="stChatMessage"] {
+    padding: 0.75rem 1rem;
+    margin: 0.375rem 0;
+    border-radius: var(--radius-md);
+}
+
+[data-testid="stChatMessage"] [data-testid="stAvatar"] {
+    width: 32px;
+    height: 32px;
+}
+
+[data-testid="stChatMessage"] .markdown {
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+/* ==================================================
+   SOURCES (INLINE MINIMAL)
+   ================================================== */
+
+.sources-inline {
+    margin-top: 0.2rem;
+    display: block;
+}
+
+.source-inline-item {
+    display: block;
+    font-size: 12px;
+    line-height: 1.35;
+    color: rgba(156, 163, 175, 0.88);
+    margin: 0.08rem 0;
+    padding: 0;
+}
+
+/* ==================================================
+   CHAT INPUT
+   ================================================== */
+
+/*
+  The chat input container is fixed to the bottom of the viewport.
+  By default, it spans the full screen width, which is correct for mobile
+  views where the sidebar is a temporary overlay.
+*/
+[data-testid="stChatInput"] {
     position: fixed;
     bottom: 0;
-    left: var(--sidebar-width);
+    left: 0;
     right: 0;
-
-    background: #0e1117;
-    padding: 0.9rem 1.2rem 1.5rem 1.2rem;
-
-    border-top: 1px solid rgba(255,255,255,0.15);
-    box-shadow: 0 -6px 20px rgba(0,0,0,0.45);
+    background: linear-gradient(180deg, transparent 0%, rgba(3, 7, 18, 0.98) 30%);
+    padding: 0.5rem 1.5rem 1rem 1.5rem;
     z-index: 9999;
 }
 
-div[data-testid="stChatInput"] textarea {
-    box-shadow: 0 0 0 1px rgba(0,136,255,0.35);
+/*
+  On larger screens (desktops), the sidebar is permanently visible on the left.
+  This media query applies a left offset to the chat input, equal to the
+  sidebar's width, to prevent them from overlapping. This aligns the
+  chat input correctly with the main content area.
+*/
+@media (min-width: 992px) {
+    [data-testid="stChatInput"] {
+        left: 304px; /* Standard width of an expanded Streamlit sidebar */
+    }
+}
+
+[data-testid="stChatInput"] .stChatInput {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+[data-testid="stChatInput"] textarea {
+    background: rgba(17, 24, 39, 0.95);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: var(--radius-lg);
+    padding: 0.75rem 1rem;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    min-height: 2.75rem;
+    transition: all 0.3s ease;
+}
+
+[data-testid="stChatInput"] textarea:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+    outline: none;
+}
+
+/* Custom "Generating" bar to replace chat input */
+.generating-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(180deg, transparent 0%, rgba(3, 7, 18, 0.98) 30%);
+    padding: 0.5rem 1.5rem 1rem 1.5rem;
+    z-index: 9999;
+}
+
+@media (min-width: 992px) {
+    .generating-bar {
+        left: 304px; /* Align with main content */
+    }
+}
+
+.generating-bar .stChatInput { /* Re-use for alignment */
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* Style the Stop button inside the generating bar */
+.generating-bar .stButton > button {
+    background: rgba(239, 68, 68, 0.8); /* Red for stop */
+    border: 1px solid rgba(239, 68, 68, 1);
+    border-radius: var(--radius-lg);
+    color: white;
+    font-weight: 600;
+    font-size: 0.8rem;
+    width: 100%;
+    height: 2.75rem;
+    box-shadow: 0 2px 10px rgba(239, 68, 68, 0.3);
+    transition: all 0.2s ease;
+}
+
+.generating-bar .stButton > button:hover {
+    background: rgba(220, 38, 38, 1);
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+    transform: translateY(-1px);
+}
+
+/* ==================================================
+   ANALYTICS CARDS
+   ================================================== */
+
+.analytics-card {
+    background: linear-gradient(135deg, rgba(17, 24, 39, 0.8) 0%, rgba(27, 35, 50, 0.6) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.analytics-card:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+}
+
+.analytics-icon {
+    font-size: 1.75rem;
+    margin-bottom: 0.375rem;
+}
+
+.analytics-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    background: var(--gradient-text);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.analytics-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    font-weight: 600;
+}
+
+/* ==================================================
+   EMPTY STATES
+   ================================================== */
+
+.empty-state {
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    background: rgba(17, 24, 39, 0.6);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: var(--radius-lg);
+    margin: 1rem auto;
+    max-width: 550px;
+}
+
+.empty-state-icon {
+    font-size: 3.5rem;
+    margin-bottom: 0.875rem;
+    animation: float 3s ease-in-out infinite;
+}
+
+.empty-state-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    background: var(--gradient-text);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.empty-state-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin: 0 0 0.875rem 0;
+    line-height: 1.5;
+}
+
+.empty-state-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.625rem 1rem;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: var(--radius-sm);
+    font-size: 0.775rem;
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
+.chat-empty-state {
+    text-align: center;
+    padding: 2rem 1rem;
+    background: rgba(17, 24, 39, 0.5);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: var(--radius-lg);
+    margin: 0.75rem 0;
+}
+
+.chat-empty-state-icon {
+    font-size: 2.75rem;
+    margin-bottom: 0.625rem;
+}
+
+.chat-empty-state-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.chat-empty-state-desc {
+    font-size: 0.775rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* ==================================================
+   ALERTS
+   ================================================== */
+
+.stAlert {
+    background: rgba(17, 24, 39, 0.8);
+    border-radius: var(--radius-sm);
+    border-left: 2px solid;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+}
+
+.stAlert-info { border-left-color: var(--accent-primary); }
+.stAlert-warning { border-left-color: #F59E0B; }
+.stAlert-success { border-left-color: #10B981; }
+.stAlert-error { border-left-color: #EF4444; }
+
+.stAlert [data-testid="stAlertBody"] {
+    color: var(--text-primary);
+    font-size: 0.75rem;
+}
+
+/* ==================================================
+   EXPANDER
+   ================================================== */
+
+details {
+    background: rgba(17, 24, 39, 0.8);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 0.625rem;
+}
+
+details[open] { border-color: var(--accent-primary); }
+
+summary {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+/* ==================================================
+   SCROLLBAR
+   ================================================== */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: rgba(11, 15, 25, 0.5); }
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--accent-primary), var(--accent-secondary));
+    border-radius: 3px;
+}
+
+/* ==================================================
+   DOWNLOAD BUTTONS
+   ================================================== */
+
+.stDownloadButton > button {
+    width: 100%;
+    background: rgba(17, 24, 39, 0.8);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.7rem;
+    padding: 0.5rem 0.625rem;
+    transition: all 0.3s ease;
+}
+
+.stDownloadButton > button:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: var(--accent-primary);
+    transform: translateY(-1px);
 }
 
 </style>
 """, unsafe_allow_html=True)
 
 
-# --------------------------------------------------
-# SESSION STATE
-# --------------------------------------------------
+# ==============================================================================
+# SESSION STATE INITIALIZATION
+# ==============================================================================
+# Initialize session state variables to preserve state across reruns.
+# - 'stats': A dictionary to hold analytics data.
+# - 'messages': A list to store chat history.
+# - 'docs_processed': A flag to indicate if documents have been processed.
 
 if "stats" not in st.session_state:
-    st.session_state.stats = {
-        "files": 0,
-        "pages": 0,
-        "chunks": 0,
-        "questions": 0,
-    }
+    st.session_state.stats = {"files": 0, "pages": 0, "chunks": 0, "questions": 0}
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -83,309 +623,334 @@ if "messages" not in st.session_state:
 if "docs_processed" not in st.session_state:
     st.session_state.docs_processed = False
 
+if "generating" not in st.session_state:
+    st.session_state.generating = False
 
-# --------------------------------------------------
-# EXPORT HELPERS
-# --------------------------------------------------
+
+# ==============================================================================
+# HELPER FUNCTIONS
+# ==============================================================================
 
 def export_chat_txt(messages):
-    return "\n\n".join(
-        [f"{m['role'].upper()}: {m['content']}" for m in messages]
-    )
-
+    """Formats chat history into a plain text string."""
+    return "\n\n".join([f"{m['role'].upper()}: {m['content']}" for m in messages])
 
 def export_chat_json(messages):
+    """Formats chat history into a JSON string."""
     return json.dumps(messages, indent=2)
 
-
-# --------------------------------------------------
-# TITLE
-# --------------------------------------------------
-
-st.title("🔍 AI Document Search Pro")
-st.caption("Upload documents, preview them, chat with AI, and analyze sessions.")
-
-
-# --------------------------------------------------
-# SIDEBAR — UPLOAD
-# --------------------------------------------------
-
-st.sidebar.header("📂 Document Upload")
-st.sidebar.header("⚙️ Controls")
-
-if st.sidebar.button("🗑 Clear & Reset App"):
-    reset_app()
-    st.session_state.docs_processed = False
-    st.session_state.pop("suggested_questions", None)
-    st.session_state.messages = []
-    st.rerun()
-
-uploaded_files = st.sidebar.file_uploader(
-    "Upload PDF or TXT files",
-    type=["pdf", "txt"],
-    accept_multiple_files=True,
-)
-
-UPLOAD_DIR = "data/uploads"
-VECTOR_DIR = "vectorstore"
-
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(VECTOR_DIR, exist_ok=True)
-
-
-# --------------------------------------------------
-# HASH UTILS
-# --------------------------------------------------
-
 def hash_chunks(chunks):
+    """Creates a unique hash for a list of document chunks."""
     combined = "".join(c.page_content for c in chunks)
     return hashlib.md5(combined.encode()).hexdigest()
 
 
-# --------------------------------------------------
-# PROCESS DOCUMENTS
-# --------------------------------------------------
+def render_sources_inline(sources):
+    """Renders sources as subtle inline metadata without changing source data."""
+    if not sources:
+        return
 
-if st.sidebar.button("🚀 Process Documents") and uploaded_files:
+    lines = []
+    for source_name, page in sources:
+        safe_source = html.escape(str(source_name))
+        safe_page = html.escape(str(page))
+        lines.append(
+            f'<div class="source-inline-item">📄 {safe_source} • Page {safe_page}</div>'
+        )
 
-    st.session_state.docs_processed = True
+    st.markdown(
+        f'<div class="sources-inline">{"".join(lines)}</div>',
+        unsafe_allow_html=True,
+    )
 
-    # wipe UI state
-    st.session_state.pop("suggested_questions", None)
+# ==============================================================================
+# SIDEBAR UI
+# ==============================================================================
+# This section defines the user interface for the sidebar, which includes
+# controls for document upload, processing, and chat export.
+
+st.sidebar.markdown("""
+<div style="margin-bottom: 1.5rem;">
+    <div style="font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 1.25rem;">📁</span> Document Upload
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Controls Section
+st.sidebar.markdown("""
+<div style="margin-bottom: 1rem;">
+    <div style="font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
+        <span style="font-size: 1rem;">⚙️</span> Controls
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+if st.sidebar.button("🗑️ Clear & Reset App", use_container_width=True):
+    reset_app()
+    st.session_state.docs_processed = False
     st.session_state.messages = []
+    st.rerun()
 
-    # save uploads
-    for file in uploaded_files:
-        with open(os.path.join(UPLOAD_DIR, file.name), "wb") as f:
-            f.write(file.getbuffer())
+# File Uploader
+st.sidebar.markdown('<div style="font-size: 0.8rem; color: var(--text-secondary); margin: 1rem 0 0.5rem 0;">Upload PDF or TXT files</div>', unsafe_allow_html=True)
+uploaded_files = st.sidebar.file_uploader(
+    "Upload files",
+    type=["pdf", "txt"],
+    accept_multiple_files=True,
+    label_visibility="collapsed"
+)
 
-    st.session_state.stats["files"] = len(uploaded_files)
+# Document Processing Logic
+if st.sidebar.button("🚀 Process Documents", use_container_width=True):
+    if uploaded_files:
+        st.session_state.docs_processed = True
+        st.session_state.messages = []
 
-    with st.spinner("📄 Loading documents..."):
-        docs = load_documents(UPLOAD_DIR)
+        # Save uploaded files to the upload directory
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        for file in uploaded_files:
+            with open(os.path.join(UPLOAD_DIR, file.name), "wb") as f:
+                f.write(file.getbuffer())
 
-    st.session_state.stats["pages"] = len(docs)
+        st.session_state.stats["files"] = len(uploaded_files)
 
-    with st.spinner("✂️ Splitting..."):
-        chunks = split_documents(docs)
+        # RAG Pipeline Steps: Load -> Split -> Embed -> Store
+        with st.spinner("📄 Loading..."):
+            docs = load_documents(UPLOAD_DIR)
+        st.session_state.stats["pages"] = len(docs)
 
-    st.session_state.stats["chunks"] = len(chunks)
+        with st.spinner("✂️ Splitting..."):
+            chunks = split_documents(docs)
+        st.session_state.stats["chunks"] = len(chunks)
 
-    # -----------------------------
-    # HASH CHECK
-    # -----------------------------
+        # Caching mechanism: Rebuild vector store only if documents change
+        new_hash = hash_chunks(chunks)
+        hash_file = os.path.join(VECTOR_DIR, "doc_hash.json")
+        rebuild = True
+        if os.path.exists(hash_file):
+            with open(hash_file) as f:
+                saved = json.load(f)
+            if saved.get("hash") == new_hash:
+                rebuild = False
 
-    new_hash = hash_chunks(chunks)
-    hash_file = os.path.join(VECTOR_DIR, "doc_hash.json")
-
-    rebuild = True
-
-    if os.path.exists(hash_file):
-
-        with open(hash_file) as f:
-            saved = json.load(f)
-
-        if saved.get("hash") == new_hash:
-            rebuild = False
-
-    # -----------------------------
-    # REBUILD IF DIFFERENT
-    # -----------------------------
-
-    if rebuild:
-
-        st.sidebar.warning("♻️ New documents detected — rebuilding embeddings")
-
-        if os.path.exists(VECTOR_DIR):
-            shutil.rmtree(VECTOR_DIR)
-
-        with st.spinner("🧠 Creating vector DB..."):
-            create_vectorstore(chunks, VECTOR_DIR)
-
-        with open(hash_file, "w") as f:
-            json.dump({"hash": new_hash}, f)
-
-        st.sidebar.success("🎉 Vector store created!")
-
+        if rebuild:
+            st.sidebar.warning("♻️ New documents — rebuilding")
+            if os.path.exists(VECTOR_DIR):
+                shutil.rmtree(VECTOR_DIR)
+            with st.spinner("🧠 Creating embeddings..."):
+                create_vectorstore(chunks, VECTOR_DIR)
+            os.makedirs(VECTOR_DIR, exist_ok=True)
+            with open(hash_file, "w") as f:
+                json.dump({"hash": new_hash}, f)
+            st.sidebar.success("✨ Vector store created!")
+        else:
+            st.sidebar.info("⚡ Using cached embeddings")
     else:
-        st.sidebar.info("⚡ Same documents — using cached embeddings")
+        st.sidebar.error("Please upload files first")
+
+st.sidebar.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
+
+# Export Chat Section
+st.sidebar.markdown("""
+<div style="margin-bottom: 1rem;">
+    <div style="font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
+        <span style="font-size: 1rem;">📤</span> Export Chat
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+if st.session_state.messages:
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    col_txt, col_json = st.sidebar.columns(2)
+    with col_txt:
+        st.download_button("📄 TXT", export_chat_txt(st.session_state.messages), file_name=f"chat_{ts}.txt", use_container_width=True)
+    with col_json:
+        st.download_button("📋 JSON", export_chat_json(st.session_state.messages), file_name=f"chat_{ts}.json", use_container_width=True)
+else:
+    st.sidebar.info("No chat yet.")
 
 
-# --------------------------------------------------
-# LOAD VECTORSTORE
-# --------------------------------------------------
+# ==============================================================================
+# MAIN UI
+# ==============================================================================
 
-vectorstore = None
+# --- Hero Header ---
+st.markdown("""
+<div class="hero-glow">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div style="font-size: 2rem; animation: float 3s ease-in-out infinite;">🔮</div>
+        <div>
+            <h1 class="hero-title">AI Document Search Pro</h1>
+            <p class="hero-subtitle">Your personal AI-powered document expert.</p>
+        </div>
+    </div>
+</div>
+<div class="divider-glow"></div>
+""", unsafe_allow_html=True)
 
-if os.path.exists(os.path.join(VECTOR_DIR, "index.faiss")):
-    try:
-        vectorstore = load_vectorstore(VECTOR_DIR)
-    except:
-        pass
-
-
-# --------------------------------------------------
-# SMART SUGGESTION GENERATOR
-# --------------------------------------------------
-
-def generate_suggested_questions(vectorstore):
-
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
-
-    docs = retriever.invoke("Give an overview of this document")
-
-    context = "\n\n".join(d.page_content for d in docs)
-
-    llm = get_llm()
-
-    prompt = ChatPromptTemplate.from_template("""
-You are analyzing a document.
-
-Based on this content, generate 5 helpful user questions someone might ask.
-
-Return only the questions as bullet points.
-
-CONTENT:
-{context}
-""")
-
-    chain = prompt | llm
-
-    result = chain.invoke({"context": context})
-
-    lines = result.content.split("\n")
-
-    return [
-        l.replace("-", "").strip()
-        for l in lines
-        if l.strip()
-    ][:5]
-
-
-# --------------------------------------------------
-# TABS
-# --------------------------------------------------
-
+# --- Main Content Tabs ---
 tab_chat, tab_analytics = st.tabs(["💬 Chat", "📊 Analytics"])
 
-
-# ==================================================
-# CHAT TAB
-# ==================================================
-
+# --- Chat Tab ---
+# This tab contains the main chat interface and logic for handling user queries.
 with tab_chat:
-
+    # Load existing vectorstore if available
+    vectorstore = None
+    if os.path.exists(os.path.join(VECTOR_DIR, "index.faiss")):
+        try:
+            vectorstore = load_vectorstore(VECTOR_DIR)
+        except Exception as e:
+            st.error(f"Error loading vector store: {e}")
+            
+    # Display chat interface only if documents have been processed
     if vectorstore and st.session_state.docs_processed:
-
-        st.subheader("💡 Suggested Questions")
-
-        if "suggested_questions" not in st.session_state:
-
-            with st.spinner("✨ Generating smart suggestions..."):
-                try:
-                    st.session_state.suggested_questions = (
-                        generate_suggested_questions(vectorstore)
-                    )
-                except:
-                    st.session_state.suggested_questions = []
-
-        suggested = st.session_state.suggested_questions
-
-        if suggested:
-            cols = st.columns(len(suggested))
-            for i, q in enumerate(suggested):
-                if cols[i].button(q):
-                    st.session_state.prefilled_question = q
-
+        # --- Chat History Display ---
         rag_chain = build_rag_chain(vectorstore)
-
-        # history
-        for msg in st.session_state.messages:
-            st.chat_message(msg["role"]).write(msg["content"])
-
-        question = st.chat_input("Ask something about the uploaded documents...")
-
-        if "prefilled_question" in st.session_state:
-            question = st.session_state.prefilled_question
-            del st.session_state.prefilled_question
-
-        if question:
-
-            st.chat_message("user").write(question)
-            st.session_state.stats["questions"] += 1
-
-            try:
-                with st.spinner("🤖 Thinking..."):
-                    answer, sources = rag_chain(question)
-
-            except Exception:
-                st.error("⚠️ API quota exceeded or service busy. Please retry later.")
-                st.stop()
-
-            st.chat_message("assistant").write(answer)
-
-            unique_sources = {}
-            for doc in sources:
-                src = doc.metadata.get("source", "Unknown")
-                page = doc.metadata.get("page", "N/A")
-                display_page = int(page) + 1 if str(page).isdigit() else page
-                unique_sources[f"{src}-{display_page}"] = (src, display_page)
-
-            if unique_sources:
-                with st.expander("📚 Sources"):
-                    for s, p in unique_sources.values():
-                        st.write(f"📄 {s} | Page {p}")
-
-            st.session_state.messages.extend(
-                [
-                    {"role": "user", "content": question},
-                    {"role": "assistant", "content": answer},
-                ]
+        if st.session_state.messages:
+            for msg in st.session_state.messages:
+                with st.chat_message(msg["role"], avatar="👤" if msg["role"] == "user" else "🤖"):
+                    st.markdown(msg["content"])
+                    # Re-render sources if they exist in the saved message
+                    if msg.get("sources"):
+                        render_sources_inline(msg["sources"])
+            
+            # Auto-scroll to the bottom of the chat view after rendering history
+            st.markdown(
+                """
+                <script>
+                    const chatContainer = window.parent.document.querySelector('.main');
+                    if (chatContainer) {
+                        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+                    }
+                </script>
+                """,
+                unsafe_allow_html=True
             )
+        else:
+            st.markdown("""
+            <div class="chat-empty-state">
+                <div class="chat-empty-state-icon">💬</div>
+                <h3 class="chat-empty-state-title">Start a Conversation</h3>
+                <p class="chat-empty-state-desc">Ask questions about your documents</p>
+            </div>
+            """, unsafe_allow_html=True)
 
+        # --- Generation Logic ---
+        # This block runs only when a question is being processed.
+        if st.session_state.get("generating"):
+            last_user_message = next((msg for msg in reversed(st.session_state.messages) if msg["role"] == "user"), None)
+            if last_user_message:
+                question_to_process = last_user_message["content"]
+                with st.chat_message("assistant", avatar="🤖"):
+                    st.session_state.messages.append({"role": "assistant", "content": "", "sources": []})
+                    try:
+                        with st.spinner("Generating response..."):
+                            answer, sources = rag_chain(question_to_process)
+                    except Exception as e:
+                        st.error(f"⚠️ {e}")
+                        st.session_state.messages.pop()
+                        st.session_state.generating = False
+                        st.rerun()
+
+                    def stream_text():
+                        tokens = re.split(r'(\s+)', answer)
+                        for token in tokens:
+                            st.session_state.messages[-1]["content"] += token
+                            yield token
+                            time.sleep(0.01)
+                    
+                    st.write_stream(stream_text)
+
+                    if sources:
+                        unique_sources = {}
+                        for doc in sources:
+                            src = doc.metadata.get("source", "Unknown")
+                            page = doc.metadata.get("page", "N/A")
+                            display_page = int(page) + 1 if str(page).isdigit() else page
+                            unique_sources[f"{src}-{display_page}"] = (src, display_page)
+                        st.session_state.messages[-1]["sources"] = list(unique_sources.values())
+                        if unique_sources:
+                            render_sources_inline(list(unique_sources.values()))
+            
+            st.session_state.generating = False
+            st.rerun() # Rerun to switch back to the normal input
+
+        # --- Chat Input UI ---
+        # Conditionally display either the input or the "Generating..." bar.
+        if st.session_state.get("generating"):
+            # This markdown injects a styled container that mimics the chat input's position.
+            st.markdown(
+                """
+                <div class="generating-bar">
+                    <div class="stChatInput">
+                        <div style="display: flex; gap: 0.5rem;">
+                            <div style="flex-grow: 1;"></div>
+                            <div style="width: 150px;"></div>
+                        </div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            # We use columns within the empty container to place the stop button.
+            _, btn_col = st.columns([0.85, 0.15])
+            if btn_col.button("⏹️ Stop Generating", use_container_width=True):
+                st.session_state.generating = False
+                st.rerun()
+        else:
+            if question := st.chat_input("Ask about your documents..."):
+                st.session_state.messages.append({"role": "user", "content": question})
+                st.session_state.stats["questions"] += 1
+                st.session_state.generating = True
+                st.rerun()
+
+    # --- Initial State (No Documents) ---
     else:
-        st.info("⬅ Upload and process documents to start chatting.")
+        st.markdown("""
+        <div class="empty-state">
+            <div class="empty-state-icon">✨</div>
+            <h2 class="empty-state-title">Unlock Insights from Your Documents</h2>
+            <p class="empty-state-desc">Ready to get started? Upload your files and begin your intelligent search journey.</p>
+            <div class="empty-state-cta"><span>⬅️</span> Upload your first document to begin</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-
-# ==================================================
-# ANALYTICS TAB
-# ==================================================
-
+# --- Analytics Tab ---
+# This tab displays session statistics.
 with tab_analytics:
+    st.markdown("""
+    <div style="margin-bottom: 0.75rem;">
+        <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">📊 Analytics</h3>
+        <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0;">Session metrics</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.subheader("📊 Session Analytics")
-
+    cols = st.columns(4)
     stats_data = {
         "Files": st.session_state.stats["files"],
         "Pages": st.session_state.stats["pages"],
         "Chunks": st.session_state.stats["chunks"],
         "Questions": st.session_state.stats["questions"],
     }
+    icons = ["📁", "📄", "🔷", "💬"]
+    
+    for i, (label, value) in enumerate(stats_data.items()):
+        with cols[i]:
+            st.markdown(f"""
+            <div class="analytics-card">
+                <div class="analytics-icon">{icons[i]}</div>
+                <div class="analytics-value">{value}</div>
+                <div class="analytics-label">{label}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    st.bar_chart(stats_data)
+    st.markdown("<div style='height: 0.75rem;'></div>", unsafe_allow_html=True)
 
+    if any(v > 0 for v in stats_data.values()):
+        st.bar_chart(stats_data)
 
-# --------------------------------------------------
-# SIDEBAR — EXPORT CHAT
-# --------------------------------------------------
-
-st.sidebar.header("📤 Export Chat")
-
-if st.session_state.messages:
-
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    st.sidebar.download_button(
-        "⬇ TXT",
-        export_chat_txt(st.session_state.messages),
-        file_name=f"chat_{ts}.txt",
-    )
-
-    st.sidebar.download_button(
-        "⬇ JSON",
-        export_chat_json(st.session_state.messages),
-        file_name=f"chat_{ts}.json",
-    )
-
-else:
-    st.sidebar.info("No chat yet.")
+# ==============================================================================
+# FOOTER
+# ==============================================================================
+# (Footer removed as per user request)

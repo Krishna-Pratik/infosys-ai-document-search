@@ -5,7 +5,7 @@
 
 # 🚀 Infosys AI Document Search Platform
 
-An enterprise-grade AI-powered document analysis and question-answering platform built using **Retrieval Augmented Generation (RAG)** architecture, **Streamlit UI**, and a resilient multi-provider Large Language Model (LLM) strategy powered by **Google Gemini** with automatic fallback to **xAI Grok**.
+An enterprise-grade AI-powered document analysis and question-answering platform built using **Retrieval Augmented Generation (RAG)** architecture, **Streamlit UI**, and a resilient multi-provider Large Language Model (LLM) strategy powered by **Google Gemini** with automatic fallback to **OpenRouter**.
 
 This platform enables users to upload documents, explore their contents, ask questions in natural language, analyze sessions, preview files, and export conversations — all through a professional and scalable interface.
 
@@ -17,9 +17,8 @@ This platform enables users to upload documents, explore their contents, ask que
 - 🔍 Semantic document retrieval using vector embeddings  
 - 💬 Conversational AI using RAG  
 - ⚡ Embedding cache to avoid recomputation  
-- 🔁 Automatic LLM failover (Gemini → Grok)  
-- 🎯 AI-generated suggested questions per upload  
-- 📊 Analytics dashboard  
+- 🔁 Automatic LLM failover (Gemini → OpenRouter)  
+- � Analytics dashboard  
 - 📄 Sidebar document preview  
 - 📤 Export chat history (TXT / JSON)  
 - 📌 Pinned chat input UX  
@@ -53,7 +52,7 @@ Retriever
 Prompt Template
         │
         ▼
-LLM Router (Gemini / Grok)
+LLM Router (Gemini / OpenRouter)
         │
         ▼
 Answer + Source Documents
@@ -70,7 +69,7 @@ Answer + Source Documents
 | Vector Database | FAISS |
 | Embeddings | Gemini Embeddings |
 | Primary LLM | Gemini 2.5 Flash |
-| Fallback LLM | Grok (xAI) |
+| Fallback LLM | OpenRouter |
 | Backend | Python |
 | Secrets | python-dotenv |
 | Deployment | Cloud VM / Streamlit Cloud / Docker |
@@ -125,8 +124,9 @@ Configure Environment Variables:
 
 Create a `.env` file:
 
-GOOGLE_API_KEY=your_gemini_api_key  
-XAI_API_KEY=your_grok_api_key  
+GOOGLE_API_KEY=your_gemini_api_key
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=anthropic/claude-3-haiku
 
 Run Application:
 
@@ -150,7 +150,7 @@ Provides real-time insights into:
 When a provider quota or rate limit is exceeded, the platform automatically switches between LLM providers:
 
 1. Google Gemini  
-2. xAI Grok  
+2. OpenRouter  
 
 This ensures high availability without disrupting user workflows.
 

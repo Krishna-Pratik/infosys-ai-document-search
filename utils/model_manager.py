@@ -2,11 +2,16 @@ import os
 from dotenv import load_dotenv
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-
-# Grok (xAI) OpenAI-compatible client
 from langchain_openai import ChatOpenAI
 
 load_dotenv()
+
+
+def _parse_csv_env(value):
+    """Parse comma-separated env values into a clean list."""
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 # --------------------------------------------------
 # MODEL POOL (PRIMARY → FALLBACK)
@@ -17,11 +22,29 @@ MODEL_POOL = [
         "provider": "gemini",
         "model": "gemini-2.5-flash",
     },
-    {
-        "provider": "xai",
-        "model": "grok-beta",
-    },
 ]
+
+openrouter_model = os.getenv("OPENROUTER_MODEL")
+openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+openrouter_fallback_models = _parse_csv_env(
+    os.getenv("OPENROUTER_FALLBACK_MODELS", "openrouter/auto")
+)
+
+# Add OpenRouter as fallback only when fully configured.
+if openrouter_api_key and openrouter_model:
+    openrouter_candidates = [openrouter_model, *openrouter_fallback_models]
+    seen = set()
+
+    for candidate in openrouter_candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        MODEL_POOL.append(
+            {
+                "provider": "openrouter",
+                "model": candidate,
+            }
+        )
 
 _active_index = 0
 
@@ -79,18 +102,21 @@ def get_llm():
             streaming=False,
         )
 
-    if provider == "xai":
+    if provider == "openrouter":
+        # OpenRouter requires both an API key and a model name to be configured.
+        # If either is missing, we cannot proceed with this provider.
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if not api_key or not model:
+            # This error is caught by the RAG chain to allow graceful fallback.
+            raise RuntimeError("OpenRouter is not configured. Missing API key or model name.")
 
-        api_key = os.getenv("XAI_API_KEY")
-
-        if not api_key:
-            raise RuntimeError("❌ XAI_API_KEY not set in environment")
-
+        # Use the OpenAI-compatible client to connect to OpenRouter.
         return ChatOpenAI(
             model=model,
             api_key=api_key,
-            base_url="https://api.x.ai/v1",
+            base_url="https://openrouter.ai/api/v1",
             temperature=0,
         )
 
+    # This should not be reached if the MODEL_POOL is configured correctly.
     raise ValueError(f"Unknown model provider: {provider}")
