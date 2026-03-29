@@ -107,7 +107,7 @@ st.markdown("""
 
 /* Main content - compact */
 .main .block-container {
-    padding-top: 2rem;
+    padding-top: 0.4rem;
     padding-bottom: 10rem;
     max-width: 1200px !important;
     margin: auto;
@@ -144,8 +144,8 @@ footer[data-testid="stFooter"] { visibility: hidden; height: 0; }
    ================================================== */
 
 .hero-glow {
-    padding: 1rem 0;
-    margin-bottom: 0.5rem;
+    padding: 0.1rem 0;
+    margin-bottom: 0;
 }
 
 .hero-title {
@@ -164,7 +164,7 @@ footer[data-testid="stFooter"] { visibility: hidden; height: 0; }
 .hero-subtitle {
     font-size: 0.75rem;
     color: var(--text-secondary);
-    margin: 0.25rem 0 0 0;
+    margin: 0.05rem 0 0 0;
 }
 
 .divider-glow {
@@ -175,7 +175,7 @@ footer[data-testid="stFooter"] { visibility: hidden; height: 0; }
         rgba(34, 211, 238, 0.4) 50%,
         transparent 100%
     );
-    margin: 0.5rem 0 0.75rem 0;
+    margin: 0.1rem 0 0.25rem 0;
 }
 
 /* ==================================================
@@ -183,8 +183,9 @@ footer[data-testid="stFooter"] { visibility: hidden; height: 0; }
    ================================================== */
 
 [data-testid="stTabs"] {
-    border-bottom: 1px solid var(--border-subtle);
-    margin-bottom: 0.75rem;
+    border-bottom: none;
+    margin-bottom: 0.5rem;
+    margin-top: 0.25rem;
 }
 
 [data-testid="stTabs"] [role="tablist"] {
@@ -455,17 +456,17 @@ footer[data-testid="stFooter"] { visibility: hidden; height: 0; }
 
 .empty-state {
     text-align: center;
-    padding: 2.5rem 1.5rem;
+    padding: 1.5rem 1.5rem;
     background: rgba(17, 24, 39, 0.6);
     border: 1px solid rgba(99, 102, 241, 0.2);
     border-radius: var(--radius-lg);
-    margin: 1rem auto;
+    margin: 0.5rem auto;
     max-width: 550px;
 }
 
 .empty-state-icon {
     font-size: 3.5rem;
-    margin-bottom: 0.875rem;
+    margin-bottom: 0.5rem;
     animation: float 3s ease-in-out infinite;
 }
 
@@ -473,7 +474,7 @@ footer[data-testid="stFooter"] { visibility: hidden; height: 0; }
     font-size: 1.25rem;
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
     background: var(--gradient-text);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -483,7 +484,7 @@ footer[data-testid="stFooter"] { visibility: hidden; height: 0; }
 .empty-state-desc {
     font-size: 0.8rem;
     color: var(--text-secondary);
-    margin: 0 0 0.875rem 0;
+    margin: 0 0 0.5rem 0;
     line-height: 1.5;
 }
 
