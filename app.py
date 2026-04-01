@@ -4,7 +4,6 @@
 import streamlit as st
 import os
 import json
-import hashlib
 import shutil
 import time
 import re
@@ -15,7 +14,7 @@ from dotenv import load_dotenv
 # Local utility imports
 from utils.loader import load_documents
 from utils.splitter import split_documents
-from utils.embeddings import create_vectorstore, load_vectorstore
+from utils.embeddings import create_vectorstore
 from utils.rag_chain import build_rag_chain
 from utils.reset import reset_app
 
@@ -627,6 +626,9 @@ if "docs_processed" not in st.session_state:
 if "generating" not in st.session_state:
     st.session_state.generating = False
 
+if "vectorstore" not in st.session_state:
+    st.session_state.vectorstore = None
+
 
 # ==============================================================================
 # HELPER FUNCTIONS
@@ -639,11 +641,6 @@ def export_chat_txt(messages):
 def export_chat_json(messages):
     """Formats chat history into a JSON string."""
     return json.dumps(messages, indent=2)
-
-def hash_chunks(chunks):
-    """Creates a unique hash for a list of document chunks."""
-    combined = "".join(c.page_content for c in chunks)
-    return hashlib.md5(combined.encode()).hexdigest()
 
 
 def render_sources_inline(sources):
@@ -689,8 +686,6 @@ st.sidebar.markdown("""
 
 if st.sidebar.button("🗑️ Clear & Reset App", use_container_width=True):
     reset_app()
-    st.session_state.docs_processed = False
-    st.session_state.messages = []
     st.rerun()
 
 # File Uploader
@@ -705,8 +700,16 @@ uploaded_files = st.sidebar.file_uploader(
 # Document Processing Logic
 if st.sidebar.button("🚀 Process Documents", use_container_width=True):
     if uploaded_files:
-        st.session_state.docs_processed = True
+        # Start a clean session whenever user processes a new upload batch.
+        st.session_state.docs_processed = False
         st.session_state.messages = []
+        st.session_state.vectorstore = None
+
+        st.sidebar.info("Previous document context cleared. Processing new document...")
+
+        # Always wipe previous uploads so only the current selection is indexed.
+        if os.path.exists(UPLOAD_DIR):
+            shutil.rmtree(UPLOAD_DIR)
 
         # Save uploaded files to the upload directory
         os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -725,28 +728,32 @@ if st.sidebar.button("🚀 Process Documents", use_container_width=True):
             chunks = split_documents(docs)
         st.session_state.stats["chunks"] = len(chunks)
 
-        # Caching mechanism: Rebuild vector store only if documents change
-        new_hash = hash_chunks(chunks)
-        hash_file = os.path.join(VECTOR_DIR, "doc_hash.json")
-        rebuild = True
-        if os.path.exists(hash_file):
-            with open(hash_file) as f:
-                saved = json.load(f)
-            if saved.get("hash") == new_hash:
-                rebuild = False
-
-        if rebuild:
-            st.sidebar.warning("♻️ New documents — rebuilding")
+        if not docs:
+            st.sidebar.error("No documents were loaded. Please upload valid PDF or TXT files.")
+        elif not chunks:
+            st.sidebar.error("No readable text was found to index. Try text-based files (not image-only PDFs).")
+        else:
+            # Always rebuild a fresh FAISS index for the current upload batch.
             if os.path.exists(VECTOR_DIR):
                 shutil.rmtree(VECTOR_DIR)
-            with st.spinner("🧠 Creating embeddings..."):
-                create_vectorstore(chunks, VECTOR_DIR)
-            os.makedirs(VECTOR_DIR, exist_ok=True)
-            with open(hash_file, "w") as f:
-                json.dump({"hash": new_hash}, f)
-            st.sidebar.success("✨ Vector store created!")
-        else:
-            st.sidebar.info("⚡ Using cached embeddings")
+
+            try:
+                with st.spinner("🧠 Creating embeddings..."):
+                    db = create_vectorstore(chunks, VECTOR_DIR)
+
+                if db is None:
+                    st.sidebar.error("Embedding creation failed. Please try again.")
+                    st.stop()
+
+                st.session_state["vectorstore"] = db
+                st.session_state.docs_processed = True
+                st.sidebar.success("✨ Fresh vector store created!")
+            except ValueError as e:
+                st.sidebar.error(str(e))
+                st.stop()
+            except Exception as e:
+                st.sidebar.error(f"Failed to create vector store: {e}")
+                st.stop()
     else:
         st.sidebar.error("Please upload files first")
 
@@ -796,13 +803,8 @@ tab_chat, tab_analytics = st.tabs(["💬 Chat", "📊 Analytics"])
 # --- Chat Tab ---
 # This tab contains the main chat interface and logic for handling user queries.
 with tab_chat:
-    # Load existing vectorstore if available
-    vectorstore = None
-    if os.path.exists(os.path.join(VECTOR_DIR, "index.faiss")):
-        try:
-            vectorstore = load_vectorstore(VECTOR_DIR)
-        except Exception as e:
-            st.error(f"Error loading vector store: {e}")
+    # Use the in-session vectorstore to avoid stale disk context reuse.
+    vectorstore = st.session_state.get("vectorstore")
             
     # Display chat interface only if documents have been processed
     if vectorstore and st.session_state.docs_processed:

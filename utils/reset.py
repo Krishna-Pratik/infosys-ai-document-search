@@ -7,19 +7,6 @@ VECTOR_DIR = "vectorstore"
 
 
 def reset_app():
-    # Clear chat messages
-    if "messages" in st.session_state:
-        st.session_state.messages = []
-
-    # Reset stats
-    if "stats" in st.session_state:
-        st.session_state.stats = {
-            "files": 0,
-            "pages": 0,
-            "chunks": 0,
-            "questions": 0
-        }
-
     # Delete uploaded files
     if os.path.exists(UPLOAD_DIR):
         shutil.rmtree(UPLOAD_DIR)
@@ -28,3 +15,6 @@ def reset_app():
     # Delete vectorstore
     if os.path.exists(VECTOR_DIR):
         shutil.rmtree(VECTOR_DIR)
+
+    # Clear all session state keys so no stale vectorstore/chat state survives.
+    st.session_state.clear()
