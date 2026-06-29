@@ -46,9 +46,9 @@ export function Hero() {
         custom={2}
         className="mx-auto mt-5 max-w-2xl text-base text-muted sm:text-lg"
       >
-        Upload PDFs or text files and ask anything. NeuralDocs retrieves the most
-        relevant passages and returns grounded answers with citations — never
-        hallucinated.
+        Upload PDFs, Word docs, spreadsheets, images — anything. NeuralDocs
+        extracts the content, retrieves the most relevant passages, and returns
+        grounded answers with citations — never hallucinated.
       </motion.p>
 
       <motion.div

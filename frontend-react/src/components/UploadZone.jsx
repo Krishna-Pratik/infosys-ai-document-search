@@ -12,7 +12,13 @@ import { Button } from '@/components/ui/button'
 import { StatsBar } from '@/components/StatsBar'
 import { cn, formatBytes } from '@/lib/utils'
 
-const ACCEPT = '.pdf,.txt'
+const ALLOWED = [
+  'pdf', 'txt', 'md', 'markdown', 'csv', 'tsv', 'xlsx', 'xls', 'xlsm',
+  'docx', 'json', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'tiff',
+  'log', 'py', 'js', 'ts', 'html', 'css', 'yaml', 'yml', 'xml',
+]
+const ACCEPT = ALLOWED.map((e) => `.${e}`).join(',')
+const ALLOWED_RE = new RegExp(`\\.(${ALLOWED.join('|')})$`, 'i')
 
 export function UploadZone({ onUpload, uploading, stats }) {
   const inputRef = useRef(null)
@@ -20,9 +26,7 @@ export function UploadZone({ onUpload, uploading, stats }) {
   const [files, setFiles] = useState([])
 
   function addFiles(list) {
-    const picked = Array.from(list).filter((f) =>
-      /\.(pdf|txt)$/i.test(f.name)
-    )
+    const picked = Array.from(list).filter((f) => ALLOWED_RE.test(f.name))
     if (picked.length) setFiles((prev) => dedupe([...prev, ...picked]))
   }
 
@@ -47,8 +51,8 @@ export function UploadZone({ onUpload, uploading, stats }) {
           <UploadCloud className="h-5 w-5 text-brand-400" />
         </span>
         <div>
-          <CardTitle>Upload documents</CardTitle>
-          <p className="text-xs text-faint">PDF or TXT · multiple allowed</p>
+          <CardTitle>Upload anything</CardTitle>
+          <p className="text-xs text-faint">PDF · Office · data · images · multiple allowed</p>
         </div>
       </CardHeader>
 
@@ -90,7 +94,9 @@ export function UploadZone({ onUpload, uploading, stats }) {
           <p className="text-sm font-medium text-ink">
             {dragging ? 'Drop to add files' : 'Drag & drop or click to browse'}
           </p>
-          <p className="mt-1 text-xs text-faint">Supports PDF and TXT</p>
+          <p className="mt-1 text-xs text-faint">
+            PDF, Word, Excel, CSV, JSON, images & more
+          </p>
           <input
             ref={inputRef}
             type="file"
