@@ -228,6 +228,14 @@ Create a .env file in the project root with required keys (see next section).
 
 ---
 
+## 🌍 Deployment Notes
+
+- Vercel can now deploy the frontend from the repository root using the root-level [vercel.json](vercel.json).
+- The frontend build runs from [frontend-react](frontend-react) and outputs to [frontend-react/dist](frontend-react/dist).
+- Render should deploy the FastAPI backend from [backend](backend) using [render.yaml](render.yaml).
+
+---
+
 ## 🔐 Environment Variables
 
 Create a .env file in project root and define:
