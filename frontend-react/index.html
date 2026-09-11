@@ -3,7 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      viewport-fit=cover → safe-area insets resolve on notched devices.
+      interactive-widget=resizes-content → Android Chrome shrinks the layout
+      viewport when the keyboard opens, so dvh-sized areas (chat) make room
+      for it instead of hiding the input behind the keyboard. Ignored on
+      iOS/desktop, harmless there.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <meta
       name="description"
       content="AI Document Search — upload documents and get cited, RAG-powered answers. Built with FastAPI, LangChain, FAISS and Gemini."

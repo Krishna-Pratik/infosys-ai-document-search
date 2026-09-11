@@ -186,7 +186,7 @@ Tip: Keep screenshots in consistent resolution (1280×900) for a premium look.
         FastAPI application:
         - main.py — API endpoints: POST /upload, POST /query, GET /health
         - utils/ — modular pipeline:
-            - loader.py, splitter.py, embeddings.py, rag_chain.py, model_manager.py, hash_utils.py, reset.py
+            - loader.py, splitter.py, embeddings.py, rag_chain.py, model_manager.py, hash_utils.py
         - requirements.txt — Python dependencies
         - .env — API keys (never committed)
 - vercel.json  

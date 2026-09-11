@@ -27,7 +27,7 @@ export function Navbar({ health }) {
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
         <a href="/" className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-cyan shadow-lg shadow-brand-500/30">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-brand-500 to-cyan shadow-lg shadow-brand-500/30">
             <Sparkles className="h-5 w-5 text-white" />
           </span>
           <span className="text-lg font-bold tracking-tight">

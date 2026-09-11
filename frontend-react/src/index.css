@@ -24,7 +24,8 @@
 
   --color-ink: #f3f4f6;
   --color-muted: #94a3b8;
-  --color-faint: #5b6478;
+  /* WCAG AA: #5b6478 measured 3.4:1 on the dark ground (fails small text). */
+  --color-faint: #8b94a7;
 
   /* Motion */
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
@@ -90,6 +91,22 @@
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--color-brand-500) 25%, transparent),
     0 20px 60px -20px color-mix(in srgb, var(--color-brand-500) 45%, transparent);
+}
+
+/* Streaming caret shown at the end of an answer while tokens arrive */
+.stream-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--color-brand-400);
+  animation: caret-blink 0.9s steps(2, start) infinite;
+}
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
 }
 
 /* Aurora background blobs */
@@ -190,6 +207,7 @@
   padding: 0;
 }
 .prose-chat a {
-  color: var(--color-cyan);
+  color: var(--color-brand-400);
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
