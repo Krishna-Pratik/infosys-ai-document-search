@@ -99,7 +99,7 @@ def get_llm():
         return ChatGoogleGenerativeAI(
             model=model,
             temperature=0,
-            streaming=False,
+            streaming=True,
         )
 
     if provider == "openrouter":
