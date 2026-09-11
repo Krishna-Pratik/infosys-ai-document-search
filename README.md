@@ -137,16 +137,17 @@ Why this matters:
 
 ## 📸 Screenshots
 
-Add project screenshots here to make the repository visually stronger.
+### Home / Chat UI
 
-- Home UI  
-        Suggested path: assets/screenshots/home-ui.png
-- Chat UI  
-        Suggested path: assets/screenshots/chat-ui.png
-- Analytics  
-        Suggested path: assets/screenshots/analytics-ui.png
+![Home UI](assets/screenshots/home-ui.png)
 
-Tip: Keep screenshots in consistent resolution for a premium look.
+The conversational RAG interface: upload documents, ask natural-language questions, and get grounded answers with source attribution.
+
+More screenshots to come:
+- Chat UI with sources — suggested path: `assets/screenshots/chat-ui.png`
+- Upload / indexing state — suggested path: `assets/screenshots/upload-ui.png`
+
+Tip: Keep screenshots in consistent resolution (1280×900) for a premium look.
 
 ---
 

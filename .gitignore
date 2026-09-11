@@ -61,6 +61,11 @@ desktop.ini
 *.swp
 
 # ------------------------------
+# Tooling artifacts
+# ------------------------------
+.playwright-mcp/
+
+# ------------------------------
 # Docker (future proof)
 # ------------------------------
 Dockerfile
