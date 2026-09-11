@@ -3,7 +3,8 @@
 ### Enterprise-grade AI Document Intelligence with RAG, Conversational Search, and Resilient Multi-Model Inference
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Streamlit App](https://img.shields.io/badge/Streamlit-Live%20Demo-FF4B4B?logo=streamlit&logoColor=white)](https://infosys-ai-document-search.streamlit.app/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-00C853)](https://github.com/Krishna-Pratik/infosys-ai-document-search)
 [![GitHub Stars](https://img.shields.io/github/stars/Krishna-Pratik/infosys-ai-document-search?style=social)](https://github.com/Krishna-Pratik/infosys-ai-document-search/stargazers)
@@ -13,7 +14,8 @@
 
 ## 🌐 Live Demo & Repository
 
-- **Live Demo:** https://infosys-ai-document-search.streamlit.app/
+- **Frontend:** deployed on Vercel via the root [vercel.json](vercel.json) (see your Vercel project URL)
+- **Backend API:** deployed on Render via [render.yaml](render.yaml) (see your Render service URL)
 - **GitHub Repository:** https://github.com/Krishna-Pratik/infosys-ai-document-search
 
 ---
@@ -38,7 +40,7 @@ Infosys AI Document Search Platform is a production-oriented Retrieval-Augmented
 - **Conversational LLM response generation**
 - **Multi-model resilience** with dynamic fallback
 - **Source-aware outputs** for traceability
-- **Clean, premium Streamlit UX** optimized for first-time usability
+- **Clean, premium React UI** optimized for first-time usability
 
 The result is an AI assistant that behaves like an internal document analyst: fast, contextual, explainable, and robust under model/API failures.
 
@@ -127,7 +129,7 @@ Why this matters:
 - Context window usage is focused on relevant chunks, minimizing token waste.
 
 ### Runtime Responsiveness
-- Streamlit interaction flow optimized for quick user feedback.
+- React interaction flow optimized for quick user feedback.
 - Lean message rendering and compact metadata display.
 - Error-tolerant model execution path avoids expensive full-stop failures.
 
@@ -151,10 +153,11 @@ Tip: Keep screenshots in consistent resolution for a premium look.
 ## 🛠️ Tech Stack
 
 ### Frontend
-- Streamlit
+- React 19 + Vite 8
+- Tailwind CSS 4, Framer Motion, sonner
 
 ### Backend
-- Python
+- Python + FastAPI (uvicorn ASGI server)
 
 ### AI/ML and Orchestration
 - LangChain
@@ -176,55 +179,53 @@ Tip: Keep screenshots in consistent resolution for a premium look.
 
 ## 📂 Project Structure
 
-- app.py  
-        Main Streamlit application and UI workflow
-- utils/  
-        Core modular pipeline utilities:
-        - loader.py
-        - splitter.py
-        - embeddings.py
-        - rag_chain.py
-        - model_manager.py
-        - hash_utils.py
-        - reset.py
-- vectorstore/  
-        FAISS index artifacts and hash metadata
-- data/uploads/  
-        Uploaded files and document processing inputs
-- chroma_db/  
-        Local persistence artifacts used by retrieval-related workflows
-- requirements.txt  
-        Python dependencies
+- frontend-react/  
+        React + Vite frontend (chat UI, upload zone, API client in src/lib/api.js)
+- backend/  
+        FastAPI application:
+        - main.py — API endpoints: POST /upload, POST /query, GET /health
+        - utils/ — modular pipeline:
+            - loader.py, splitter.py, embeddings.py, rag_chain.py, model_manager.py, hash_utils.py, reset.py
+        - requirements.txt — Python dependencies
+        - .env — API keys (never committed)
+- vercel.json  
+        Vercel deployment config (builds frontend-react)
+- render.yaml  
+        Render blueprint for the FastAPI backend
 - README.md  
         Project documentation
+
+Note: vectorstore/ and data/uploads/ are runtime artifacts created by the backend and are gitignored.
 
 ---
 
 ## 🚀 How to Run Locally
 
+The app is two services: a FastAPI backend and a React frontend.
+
 ### 1) Clone the repository
 - git clone https://github.com/Krishna-Pratik/infosys-ai-document-search.git
 - cd infosys-ai-document-search
 
-### 2) Create and activate virtual environment (recommended)
-- Windows (PowerShell):
-        - python -m venv venv
-        - .\venv\Scripts\Activate.ps1
-- macOS/Linux:
-        - python3 -m venv venv
-        - source venv/bin/activate
+### 2) Backend (FastAPI)
+- Create and activate a virtual environment inside backend/:
+        - Windows (PowerShell): `cd backend; python -m venv .venv; .\.venv\Scripts\Activate.ps1`
+        - macOS/Linux: `cd backend; python3 -m venv .venv; source .venv/bin/activate`
+- Install dependencies: pip install -r requirements.txt
+- Create a .env file in backend/ with your keys (see Environment Variables below).
+- Launch the API: uvicorn main:app --host 127.0.0.1 --port 8000
+- Verify: http://127.0.0.1:8000/health returns {"status":"ok"}
 
-### 3) Install dependencies
-- pip install -r requirements.txt
+### 3) Frontend (React + Vite)
+- cd frontend-react
+- Install dependencies: npm install
+- Launch dev server: npm run dev
+- Open http://localhost:5173 — it talks to the backend at http://localhost:8000 by default.
+  To point at a deployed API instead, set VITE_API_URL in frontend-react/.env.local.
 
-### 4) Configure environment variables
-Create a .env file in the project root with required keys (see next section).
-
-### 5) Launch Streamlit app
-- streamlit run app.py
-
-### 6) Open app
-- Local URL typically appears as http://localhost:8501
+### 4) Use the app
+- Upload documents via the UI (POST /upload re-indexes the vector store).
+- Ask questions in the chat panel (POST /query returns a grounded answer + sources).
 
 ---
 
@@ -238,7 +239,7 @@ Create a .env file in the project root with required keys (see next section).
 
 ## 🔐 Environment Variables
 
-Create a .env file in project root and define:
+Create a .env file in backend/ and define:
 
 - GOOGLE_API_KEY=your_google_api_key
 - OPENROUTER_API_KEY=your_openrouter_api_key
@@ -285,7 +286,7 @@ Building this platform provided practical, product-level insights across AI engi
 ## 🤝 Acknowledgements
 
 - **Infosys Springboard** for learning ecosystem and innovation motivation
-- Open-source communities behind Streamlit, LangChain, and FAISS
+- Open-source communities behind React, FastAPI, LangChain, and FAISS
 - Developer ecosystem enabling rapid AI product prototyping and deployment
 
 ---

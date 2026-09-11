@@ -35,6 +35,8 @@ venv/
 # ------------------------------
 data/uploads/*
 !data/uploads/.gitkeep
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
 
 vectorstore/
 *.db

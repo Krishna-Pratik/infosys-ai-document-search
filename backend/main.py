@@ -3,7 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import shutil
+import sys
 from pathlib import Path
+
+# The RAG chain prints emoji (⚠️/✅/🤖); Windows' default cp1252 console
+# encoding raises UnicodeEncodeError on them. Force UTF-8 output instead.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
 
 from utils.loader import load_documents
 from utils.splitter import split_documents
