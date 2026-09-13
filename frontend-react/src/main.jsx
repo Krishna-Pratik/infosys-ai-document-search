@@ -12,8 +12,9 @@ createRoot(document.getElementById('root'), {
   onError: Sentry.reactErrorHandler(),
 }).render(
   <StrictMode>
-    {/* reducedMotion="user" — Framer collapses transform/layout motion
-        (the chip→panel morph) to opacity-only when the OS asks for it. */}
+    {/* reducedMotion="user" — Framer collapses transform/layout motion to
+        opacity-only when the OS asks for it (the CSS floor in index.css
+        covers everything else). */}
     <MotionConfig reducedMotion="user">
       <App />
     </MotionConfig>
@@ -22,9 +23,10 @@ createRoot(document.getElementById('root'), {
       position="bottom-right"
       toastOptions={{
         style: {
-          background: '#12162a',
-          border: '1px solid #1e2538',
+          background: 'rgba(14, 19, 34, 0.9)',
+          border: '1px solid rgba(99, 102, 241, 0.25)',
           color: '#f3f4f6',
+          backdropFilter: 'blur(12px)',
         },
       }}
     />

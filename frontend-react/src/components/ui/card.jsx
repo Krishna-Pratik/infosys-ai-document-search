@@ -1,14 +1,10 @@
 import { cn } from '@/lib/utils'
 
-/* Two surfaces, not one:
-   - tool cards (upload): solid `surface` — the workspace furniture
-   - the reading card (chat): `bg-soft` with a hairline border
-   No glass blur, no identical shadows on everything. */
 export function Card({ className, ...props }) {
   return (
     <div
       className={cn(
-        'flex flex-col rounded-lg border border-border bg-surface',
+        'glass rounded-2xl shadow-xl shadow-black/20 transition-colors',
         className
       )}
       {...props}
@@ -17,23 +13,12 @@ export function Card({ className, ...props }) {
 }
 
 export function CardHeader({ className, ...props }) {
-  return (
-    <div
-      className={cn(
-        'flex items-center gap-2.5 border-b border-border px-5 py-4',
-        className
-      )}
-      {...props}
-    />
-  )
+  return <div className={cn('flex items-center gap-3 p-5 pb-0', className)} {...props} />
 }
 
 export function CardTitle({ className, ...props }) {
   return (
-    <h2
-      className={cn('text-sm font-semibold tracking-tight text-ink', className)}
-      {...props}
-    />
+    <h3 className={cn('text-base font-semibold tracking-tight text-ink', className)} {...props} />
   )
 }
 
