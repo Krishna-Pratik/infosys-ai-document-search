@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  UploadCloud,
+  Upload,
   FileText,
   Image as ImageIcon,
   Sheet,
@@ -13,7 +13,6 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { StatsBar } from '@/components/StatsBar'
 import { cn, formatBytes } from '@/lib/utils'
 
 const ALLOWED = [
@@ -25,16 +24,19 @@ const ACCEPT = ALLOWED.map((e) => `.${e}`).join(',')
 const ALLOWED_RE = new RegExp(`\\.(${ALLOWED.join('|')})$`, 'i')
 const MAX_FILE_BYTES = 10 * 1024 * 1024 // 10 MB
 
-/* Classify a picked file into pending + an optional inline error. */
+/* Classify a picked file into pending + an optional inline error.
+   Errors speak from the user's side: what happened and what to do. */
 function validate(file) {
   if (!ALLOWED_RE.test(file.name)) {
-    const ext = file.name.includes('.') ? file.name.split('.').pop().toUpperCase() : 'unknown'
-    return `Unsupported file type (.${ext.toLowerCase()})`
+    const ext = file.name.includes('.') ? file.name.split('.').pop() : ''
+    return ext
+      ? `NeuralDocs can't read .${ext.toLowerCase()} files. Try PDF, Word, text, CSV, JSON, or an image.`
+      : 'This file has no extension — rename it to something NeuralDocs can read (e.g. .pdf, .md, .csv).'
   }
   if (file.size > MAX_FILE_BYTES) {
-    return `Too large (${formatBytes(file.size)} · max ${formatBytes(MAX_FILE_BYTES)})`
+    return `This file is ${formatBytes(file.size)}, over the ${formatBytes(MAX_FILE_BYTES)} limit. Split it or upload a smaller excerpt.`
   }
-  if (file.size === 0) return 'File is empty'
+  if (file.size === 0) return 'This file is empty — there is nothing to index.'
   return null
 }
 
@@ -46,21 +48,6 @@ function fileIcon(name) {
   if (['json', 'py', 'js', 'ts', 'html', 'css', 'yaml', 'yml', 'xml'].includes(ext))
     return FileCode
   return FileText
-}
-
-/* Upload phase for the whole batch (single request → all files move together). */
-function ProgressBar({ value, error }) {
-  return (
-    <div className="h-1 w-full overflow-hidden rounded-full bg-border">
-      <div
-        className={cn(
-          'h-full rounded-full transition-[width] duration-200',
-          error ? 'bg-rose-500' : 'bg-linear-to-r from-brand-600 to-brand-400'
-        )}
-        style={{ width: `${Math.round(value * 100)}%` }}
-      />
-    </div>
-  )
 }
 
 export function UploadZone({ onUpload, uploading, uploadProgress, stats, perFile }) {
@@ -105,23 +92,21 @@ export function UploadZone({ onUpload, uploading, uploadProgress, stats, perFile
   const errorList = Object.entries(errors)
 
   return (
-    <Card className="flex h-full flex-col">
+    <Card className="flex h-full flex-col self-start lg:sticky lg:top-20">
       <CardHeader>
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500/15">
-          <UploadCloud className="h-5 w-5 text-brand-400" />
-        </span>
-        <div>
-          <CardTitle>Upload anything</CardTitle>
-          <p className="text-xs text-muted">PDF · Office · data · images · multiple allowed</p>
-        </div>
+        <Upload className="h-5 w-5 text-brand-400" aria-hidden="true" />
+        <CardTitle>Add documents</CardTitle>
       </CardHeader>
+      <p className="px-5 pb-4 text-sm text-muted">
+        PDF, Word, Excel, CSV, text, code or an image of a page — up to 10 MB each.
+      </p>
 
       <CardContent className="flex flex-1 flex-col gap-4">
         {/* Dropzone */}
         <div
           role="button"
           tabIndex={0}
-          aria-label="Upload files: drag and drop or press Enter to browse"
+          aria-label="Add documents: drag and drop or press Enter to browse"
           onClick={() => inputRef.current?.click()}
           onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && inputRef.current?.click()}
           onDragOver={(e) => {
@@ -139,28 +124,14 @@ export function UploadZone({ onUpload, uploading, uploadProgress, stats, perFile
             addFiles(e.dataTransfer.files)
           }}
           className={cn(
-            'group relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-all duration-200',
+            'flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-5 py-9 text-center transition-colors duration-150',
             dragging
-              ? 'scale-[1.01] border-brand-400 bg-brand-500/10 shadow-[0_0_0_4px_rgba(129,140,248,0.12)]'
-              : 'border-border hover:border-brand-500/60 hover:bg-brand-500/5'
+              ? 'border-brand-400 bg-brand-500/10'
+              : 'cursor-pointer border-border hover:border-brand-500/60'
           )}
         >
-          <motion.div
-            animate={dragging ? { scale: 1.1, y: -4 } : { scale: 1, y: 0 }}
-            className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-brand-500/20 to-cyan/20"
-          >
-            <UploadCloud
-              className={cn(
-                'h-7 w-7 transition-colors',
-                dragging ? 'text-brand-50' : 'text-brand-400'
-              )}
-            />
-          </motion.div>
           <p className="text-sm font-medium text-ink">
-            {dragging ? 'Drop to add files' : 'Drag & drop or click to browse'}
-          </p>
-          <p className="mt-1 text-xs text-muted">
-            PDF, Word, Excel, CSV, JSON, images &amp; more · up to {formatBytes(MAX_FILE_BYTES)} each
+            {dragging ? 'Drop them here' : 'Drag files here, or click to browse'}
           </p>
           <input
             ref={inputRef}
@@ -182,16 +153,17 @@ export function UploadZone({ onUpload, uploading, uploadProgress, stats, perFile
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="space-y-1.5 overflow-hidden"
+              className="space-y-2 overflow-hidden"
+              aria-live="polite"
             >
               {errorList.map(([name, msg]) => (
                 <li
                   key={name}
-                  className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300"
+                  className="flex items-start gap-2 rounded-md border border-error/35 bg-error/10 px-3 py-2.5 text-xs leading-relaxed text-error"
                 >
-                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   <span className="min-w-0">
-                    <span className="font-semibold">{name}</span> — {msg}
+                    <span className="font-mono text-2xs">{name}</span> — {msg}
                   </span>
                   <button
                     onClick={() =>
@@ -201,9 +173,9 @@ export function UploadZone({ onUpload, uploading, uploadProgress, stats, perFile
                       })
                     }
                     aria-label={`Dismiss error for ${name}`}
-                    className="ml-auto shrink-0 rounded p-0.5 text-rose-300/70 hover:text-rose-200"
+                    className="ml-auto shrink-0 rounded p-0.5 opacity-70 hover:opacity-100"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </li>
               ))}
@@ -211,7 +183,7 @@ export function UploadZone({ onUpload, uploading, uploadProgress, stats, perFile
           )}
         </AnimatePresence>
 
-        {/* Selected file list with per-file upload progress */}
+        {/* Selected file list with upload progress */}
         <AnimatePresence initial={false}>
           {files.length > 0 && (
             <motion.ul
@@ -223,108 +195,102 @@ export function UploadZone({ onUpload, uploading, uploadProgress, stats, perFile
               {files.map((file, idx) => {
                 const Icon = fileIcon(file.name)
                 return (
-                  <motion.li
+                  <li
                     key={file.name + file.size}
-                    layout
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 8 }}
-                    className="rounded-xl border border-border bg-surface/50 px-3 py-2.5"
+                    className="rounded-md border border-border bg-bg-soft px-3 py-2.5"
                   >
-                    <div className="flex items-center gap-3">
-                      <Icon className="h-4 w-4 shrink-0 text-brand-400" />
+                    <div className="flex items-center gap-2.5">
+                      <Icon className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
                       <span className="min-w-0 flex-1 truncate text-sm text-ink">
                         {file.name}
                       </span>
                       {uploading ? (
-                        <span className="shrink-0 text-xs tabular-nums text-muted">
+                        <span className="shrink-0 font-mono text-2xs tabular-nums text-muted">
                           {Math.round((uploadProgress ?? 0) * 100)}%
                         </span>
                       ) : (
-                        <span className="shrink-0 text-xs text-muted">
+                        <span className="shrink-0 font-mono text-2xs text-faint">
                           {formatBytes(file.size)}
                         </span>
                       )}
                       {!uploading && (
                         <button
                           onClick={() => removeFile(idx)}
-                          className="rounded-md p-1 text-muted transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+                          className="rounded p-1 text-faint transition-colors hover:text-error"
                           aria-label={`Remove ${file.name}`}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </div>
                     {uploading && (
-                      <div className="mt-2">
-                        <ProgressBar value={uploadProgress ?? 0} />
+                      <div className="mt-2 h-0.5 w-full overflow-hidden rounded-full bg-border">
+                        <div
+                          className="h-full rounded-full bg-brand-500 transition-[width] duration-200"
+                          style={{ width: `${Math.round((uploadProgress ?? 0) * 100)}%` }}
+                        />
                       </div>
                     )}
-                  </motion.li>
+                  </li>
                 )
               })}
             </motion.ul>
           )}
         </AnimatePresence>
 
-        {/* Indexing phase indicator — transfer is done, server is embedding */}
-        {uploading && (uploadProgress ?? 0) >= 1 && (
-          <p className="flex items-center gap-2 text-xs text-muted">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Uploaded — indexing documents…
-          </p>
-        )}
-
         <Button
           className="w-full"
-          size="lg"
           disabled={files.length === 0 || uploading}
           onClick={() => onUpload(files)}
         >
           {uploading ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Indexing documents…
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              {(uploadProgress ?? 0) >= 1 ? 'Reading documents…' : 'Uploading…'}
             </>
           ) : (
             <>
-              <UploadCloud className="h-4 w-4" />
-              Process {files.length > 0 ? `${files.length} file${files.length > 1 ? 's' : ''}` : 'files'}
+              <Upload className="h-4 w-4" aria-hidden="true" />
+              {files.length === 1
+                ? 'Upload 1 document'
+                : files.length > 1
+                  ? `Upload ${files.length} documents`
+                  : 'Choose documents'}
             </>
           )}
         </Button>
 
-        {/* Stats after successful indexing */}
-        <AnimatePresence>
-          {stats && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-3"
-            >
-              <div className="flex items-center gap-2 text-sm text-emerald-400">
-                <CheckCircle2 className="h-4 w-4" />
-                Knowledge base ready
-              </div>
-              <StatsBar stats={stats} />
+        {/* Indexing phase indicator — transfer is done, server is embedding */}
+        {uploading && (uploadProgress ?? 0) >= 1 && (
+          <p className="text-xs text-muted">Extracting text and indexing passages…</p>
+        )}
 
-              {/* Per-file summary cards */}
+        {/* Result summary after successful indexing */}
+        <AnimatePresence>
+          {stats && !uploading && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-3 border-t border-border pt-4"
+            >
+              <div className="flex items-center gap-2 text-sm text-ok">
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                Ready — ask a question
+              </div>
+              <p className="font-mono text-2xs text-faint">
+                {stats.files} file{stats.files > 1 ? 's' : ''} · {stats.pages} pages ·{' '}
+                {stats.chunks} passages indexed
+              </p>
               {perFile?.length > 0 && (
-                <ul className="space-y-2">
+                <ul className="space-y-1.5">
                   {perFile.map((f) => (
-                    <motion.li
-                      key={f.name}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="flex items-center gap-3 rounded-xl border border-brand-500/20 bg-brand-500/5 px-3 py-2.5"
-                    >
-                      <FileText className="h-4 w-4 shrink-0 text-brand-400" />
-                      <span className="min-w-0 flex-1 truncate text-sm text-ink">{f.name}</span>
-                      <span className="shrink-0 text-xs text-muted">
-                        {f.pages} page{f.pages === 1 ? '' : 's'} · {f.chunks} chunk
-                        {f.chunks === 1 ? '' : 's'}
+                    <li key={f.name} className="flex items-center gap-2 text-xs">
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-faint" aria-hidden="true" />
+                      <span className="min-w-0 flex-1 truncate text-muted">{f.name}</span>
+                      <span className="shrink-0 font-mono text-2xs text-faint">
+                        {f.pages}p · {f.chunks} passages
                       </span>
-                    </motion.li>
+                    </li>
                   ))}
                 </ul>
               )}

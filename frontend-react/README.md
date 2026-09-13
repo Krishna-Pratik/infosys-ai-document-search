@@ -28,7 +28,7 @@ The UI calls three endpoints (base URL = `VITE_API_URL`):
 
 | Method | Path      | Body                          | Returns                                   |
 | ------ | --------- | ----------------------------- | ----------------------------------------- |
-| GET    | `/health` | —                             | `{ status: "ok" }`                        |
+| GET    | `/health` | —                             | `{ status: "ok" \| "starting" \| "degraded", vectorstore, providers, sentry }` |
 | POST   | `/upload` | `multipart/form-data` `files` | `{ files, pages, chunks }`                |
 | POST   | `/query`  | `{ question }`                | `{ answer, sources: [{ page, content }]}` |
 
@@ -53,8 +53,9 @@ cd ../backend
 uvicorn main:app --reload    # http://localhost:8000
 ```
 
-> On Windows, start uvicorn with `PYTHONUTF8=1` so the backend's emoji log lines
-> don't crash the console (`UnicodeEncodeError` on cp1252).
+> Backend events are emitted as grep-able `event=... key=value` lines (no
+> emoji, so cp1252 Windows consoles are safe without `PYTHONUTF8=1`). See
+> `backend/DEPLOY.md` → "Production visibility".
 
 ## Production build
 
@@ -72,6 +73,7 @@ npm run preview      # preview the production build
 5. **Environment Variables:**
    ```
    VITE_API_URL = https://<your-backend>.onrender.com
+   VITE_SENTRY_DSN = <optional sentry browser dsn>   # unset = no Sentry
    ```
 6. Deploy. SPA routing is handled by the rewrite in `vercel.json`.
 

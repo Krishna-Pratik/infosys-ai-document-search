@@ -8,12 +8,17 @@ export const API_URL =
   import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:8000'
 
 async function parseError(res) {
+  let msg
   try {
     const data = await res.json()
-    return data.detail || data.message || `Request failed (${res.status})`
+    msg = data.detail || data.message || `Request failed (${res.status})`
   } catch {
-    return `Request failed (${res.status})`
+    msg = `Request failed (${res.status})`
   }
+  const err = new Error(msg)
+  err.status = res.status
+  err.retryAfter = Number(res.headers.get('Retry-After')) || null
+  return err
 }
 
 /** Ping the backend; returns true when healthy. */
@@ -56,7 +61,10 @@ export function uploadFiles(files, onProgress) {
         } catch {
           /* keep default message */
         }
-        reject(new Error(msg))
+        const err = new Error(msg)
+        err.status = xhr.status
+        err.retryAfter = Number(xhr.getResponseHeader('Retry-After')) || null
+        reject(err)
       }
     }
     xhr.onerror = () => reject(new Error('Network error — is the backend running?'))

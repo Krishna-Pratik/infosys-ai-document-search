@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 
+from utils.telemetry import log_event
+
 load_dotenv()
 
 
@@ -70,7 +72,10 @@ def rotate_model():
         _active_index = 0
 
     cfg = MODEL_POOL[_active_index]
-    print(f"🔁 Switched to {cfg['provider']} → {cfg['model']}")
+    # log_event (not print): the old emoji line crashed on Windows cp1252
+    # consoles exactly when failover fired — i.e. when logs matter most.
+    log_event("warning", "model_rotated",
+              to=f"{cfg['provider']}:{cfg['model']}")
 
 
 # --------------------------------------------------
@@ -93,7 +98,7 @@ def get_llm():
     provider = cfg["provider"]
     model = cfg["model"]
 
-    print(f"🤖 Using {provider} → {model}")
+    log_event("debug", "llm_selected", provider=provider, model=model)
 
     if provider == "gemini":
         return ChatGoogleGenerativeAI(

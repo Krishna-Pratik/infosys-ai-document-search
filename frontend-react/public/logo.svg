@@ -1,12 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#6366F1"/>
-      <stop offset="0.5" stop-color="#22D3EE"/>
-      <stop offset="1" stop-color="#A855F7"/>
-    </linearGradient>
-  </defs>
-  <rect width="32" height="32" rx="8" fill="url(#g)"/>
-  <path d="M16 7l1.9 4.6L22.5 13l-4.6 1.9L16 19l-1.9-4.1L9.5 13l4.6-1.4L16 7z" fill="#fff"/>
-  <circle cx="23" cy="22" r="2.2" fill="#fff"/>
+  <!-- Page with a folded corner; two text lines and one indigo "matched passage" line -->
+  <rect width="32" height="32" rx="8" fill="#12162a"/>
+  <path d="M9.5 6.5h9L23 11v14.5h-13.5v-19z" fill="#eae6dc"/>
+  <path d="M18.5 6.5v4.5H23" fill="#c6c1b3"/>
+  <rect x="12" y="14" width="8" height="1.6" rx="0.8" fill="#6b7280"/>
+  <rect x="12" y="17.2" width="8" height="1.6" rx="0.8" fill="#6b7280"/>
+  <rect x="12" y="20.4" width="5.5" height="1.6" rx="0.8" fill="#6366f1"/>
 </svg>

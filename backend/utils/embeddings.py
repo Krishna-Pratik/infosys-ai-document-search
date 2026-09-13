@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
 
+from utils.telemetry import log_event
+
 load_dotenv()
 
 
@@ -25,7 +27,7 @@ def create_vectorstore(chunks, persist_dir, model_name="gemini-embedding-001"):
 
     os.makedirs(persist_dir, exist_ok=True)
 
-    print("🧠 Creating fresh embeddings...")
+    log_event("info", "embeddings_building", model=model_name, chunks=len(chunks))
 
     embeddings = _get_embeddings(model_name)
 
