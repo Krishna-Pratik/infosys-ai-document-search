@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { AuroraBackground } from '@/components/AuroraBackground'
 import { Navbar } from '@/components/Navbar'
+import { Hero } from '@/components/Hero'
 import { UploadZone } from '@/components/UploadZone'
 import { ChatPanel } from '@/components/ChatPanel'
 import { Footer } from '@/components/Footer'
 import { SourcePanel } from '@/components/SourcePanel'
 import { checkHealth, streamQuestion, uploadFiles } from '@/lib/api'
 import { captureError, captureStreamError } from '@/lib/sentry'
-import { DEMO_DOC_PATH, DEMO_DOC_NAME, DEMO_QUESTION } from '@/lib/demo'
 
 export default function App() {
   const [health, setHealth] = useState('checking')
@@ -15,17 +16,17 @@ export default function App() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [stats, setStats] = useState(null)
   const [ready, setReady] = useState(false)
-  const [exampleBusy, setExampleBusy] = useState(false)
   const [messages, setMessages] = useState([])
   const [asking, setAsking] = useState(false)
-  // { source, question, morphKey } — morphKey links a citation chip to
-  // the shared-element transition into the source panel.
-  const [panel, setPanel] = useState(null)
+  const [activeSource, setActiveSource] = useState(null)
 
+  // The question that produced the message a source panel is open for.
+  const [sourceQuery, setSourceQuery] = useState('')
   const abortRef = useRef(null)
+  // Stable keys for React — also what <MessageBubble key={m.id}> uses.
   const seqRef = useRef(0)
 
-  // Ping the backend once on mount; the header shows the result.
+  // Poll backend health on mount.
   useEffect(() => {
     const ctrl = new AbortController()
     checkHealth(ctrl.signal).then((ok) => setHealth(ok ? 'online' : 'offline'))
@@ -57,35 +58,16 @@ export default function App() {
       const data = await uploadFiles(files, setUploadProgress)
       setStats(data)
       setReady(true)
-      toast.success(`${data.files} document${data.files > 1 ? 's' : ''} added · ${data.chunks} passages`)
+      toast.success(`Indexed ${data.files} file${data.files > 1 ? 's' : ''} · ${data.chunks} chunks`)
       return data
     } catch (err) {
+      // 429 is a normal conversational turn, not a reportable failure.
       if (err.status !== 429) captureError(err, 'upload')
       toast.error(err.message || 'Upload failed')
       return null
     } finally {
       setUploading(false)
       setUploadProgress(0)
-    }
-  }
-
-  /* First-touch demo: load the bundled sample through the real upload API,
-     then ask a question — the product demonstrating itself. */
-  async function tryExample() {
-    if (exampleBusy || asking) return
-    setExampleBusy(true)
-    try {
-      const res = await fetch(`${import.meta.env.BASE_URL}${DEMO_DOC_PATH}`)
-      if (!res.ok) throw new Error("Couldn't load the sample document.")
-      const file = new File([await res.text()], DEMO_DOC_NAME, {
-        type: 'text/markdown',
-      })
-      const data = await indexFiles([file])
-      if (data) handleAsk(DEMO_QUESTION)
-    } catch (err) {
-      toast.error(err.message || "Couldn't load the sample document.")
-    } finally {
-      setExampleBusy(false)
     }
   }
 
@@ -106,6 +88,7 @@ export default function App() {
         fallback: false,
         switchedTo: null,
         noAnswer: false,
+        rateLimited: false,
         error: false,
       },
     ])
@@ -190,20 +173,18 @@ export default function App() {
     }
   }
 
-  function openSource(source, message) {
-    setPanel({
-      source,
-      question: message?.question ?? '',
-      // Must match MessageBubble's layoutId: `cite-<messageId>-<sourceId>`
-      morphKey: message ? `cite-${message.id}-${source.id}` : null,
-    })
+  function openSource(source, query) {
+    setSourceQuery(query ?? '')
+    setActiveSource(source)
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="relative min-h-screen">
+      <AuroraBackground />
       <Navbar health={health} />
+      <Hero />
 
-      <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-5 py-10 lg:grid-cols-[21rem_minmax(0,1fr)] lg:px-8">
+      <main className="mx-auto grid max-w-6xl gap-6 px-5 pb-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-stretch">
         <UploadZone
           onUpload={indexFiles}
           uploading={uploading}
@@ -216,8 +197,6 @@ export default function App() {
           onAsk={handleAsk}
           asking={asking}
           ready={ready}
-          exampleBusy={exampleBusy}
-          onTryExample={tryExample}
           onOpenSource={openSource}
         />
       </main>
@@ -225,10 +204,9 @@ export default function App() {
       <Footer />
 
       <SourcePanel
-        source={panel?.source ?? null}
-        query={panel?.question}
-        morphKey={panel?.morphKey}
-        onClose={() => setPanel(null)}
+        source={activeSource}
+        query={sourceQuery}
+        onClose={() => setActiveSource(null)}
       />
     </div>
   )
