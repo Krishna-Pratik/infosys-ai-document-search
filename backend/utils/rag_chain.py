@@ -11,6 +11,7 @@ from utils.model_manager import (
     MODEL_POOL,
     get_active_config,
 )
+from utils.telemetry import log_event, capture_error
 
 
 # --------------------------------------------------
@@ -163,7 +164,7 @@ class RagPipeline:
 
             try:
                 llm = get_llm()
-                print(f"🤖 Trying model: {active_model}")
+                log_event("info", "generation_started", model=active_model)
 
                 yield {
                     "event": "status",
@@ -185,7 +186,7 @@ class RagPipeline:
                     answer_parts.append(chunk)
                     yield {"event": "token", "data": {"text": chunk}}
 
-                print(f"✅ Success with model: {active_model}")
+                log_event("info", "generation_completed", model=active_model)
                 yield {"event": "done", "data": {"model": active_model}}
                 return
 
@@ -196,6 +197,11 @@ class RagPipeline:
                 # A failure *after* tokens reached the user cannot be retried
                 # cleanly — surface what happened instead of double-streaming.
                 if started:
+                    log_event(
+                        "warning", "provider_midstream",
+                        model=active_model, kind="interrupted",
+                        error_type=type(e).__name__, error=e,
+                    )
                     yield {
                         "event": "error",
                         "data": {
@@ -205,12 +211,14 @@ class RagPipeline:
                     return
 
                 kind = _classify_error(msg)
-                if kind == "rate_limited":
-                    print(f"⚠️ Rate limit hit on {active_model}")
-                elif kind == "misconfigured":
-                    print(f"⚠️ Provider misconfigured or unavailable for {active_model}: {e}")
-                else:
-                    print(f"⚠️ Error on {active_model}: {e}")
+                # Loud, grep-able, per-provider: `event=provider_failed
+                # model=... kind=... error_type=... error=...` — enough to
+                # diagnose (quota vs auth vs network) without re-running.
+                log_event(
+                    "warning", "provider_failed",
+                    model=active_model, kind=kind,
+                    error_type=type(e).__name__, error=e,
+                )
 
                 from_model = active_model
                 rotate_model()
@@ -227,7 +235,20 @@ class RagPipeline:
                 time.sleep(2 if kind == "rate_limited" else 1)
                 continue
 
-        print("🚫 All providers exhausted")
+        # Terminal: every provider in the pool failed. This is the failure
+        # that must page loudly — one grep-able line + a Sentry event
+        # carrying each provider's actual error.
+        log_event(
+            "error", "providers_exhausted",
+            providers=", ".join(_model_label(c) for c in MODEL_POOL),
+            errors=" | ".join(error_log[-3:]),
+        )
+        capture_error(
+            "All LLM providers failed for a query",
+            fingerprint=["providers-exhausted"],
+            question=question[:200],
+            attempts=error_log,
+        )
         details = "\n".join(error_log[-3:])
         yield {
             "event": "error",

@@ -20,3 +20,5 @@ services:
         sync: false
       - key: OPENROUTER_MODEL
         value: openrouter/auto
+      - key: SENTRY_DSN
+        sync: false   # optional; unset = Sentry disabled

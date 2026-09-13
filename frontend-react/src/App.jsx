@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { AuroraBackground } from '@/components/AuroraBackground'
 import { Navbar } from '@/components/Navbar'
-import { Hero } from '@/components/Hero'
 import { UploadZone } from '@/components/UploadZone'
 import { ChatPanel } from '@/components/ChatPanel'
 import { Footer } from '@/components/Footer'
 import { SourcePanel } from '@/components/SourcePanel'
 import { checkHealth, streamQuestion, uploadFiles } from '@/lib/api'
+import { captureError, captureStreamError } from '@/lib/sentry'
+import { DEMO_DOC_PATH, DEMO_DOC_NAME, DEMO_QUESTION } from '@/lib/demo'
 
 export default function App() {
   const [health, setHealth] = useState('checking')
@@ -15,15 +15,17 @@ export default function App() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [stats, setStats] = useState(null)
   const [ready, setReady] = useState(false)
+  const [exampleBusy, setExampleBusy] = useState(false)
   const [messages, setMessages] = useState([])
   const [asking, setAsking] = useState(false)
-  const [activeSource, setActiveSource] = useState(null)
+  // { source, question, morphKey } — morphKey links a citation chip to
+  // the shared-element transition into the source panel.
+  const [panel, setPanel] = useState(null)
 
-  // The question that produced the message a source panel is open for.
-  const [sourceQuery, setSourceQuery] = useState('')
   const abortRef = useRef(null)
+  const seqRef = useRef(0)
 
-  // Poll backend health on mount.
+  // Ping the backend once on mount; the header shows the result.
   useEffect(() => {
     const ctrl = new AbortController()
     checkHealth(ctrl.signal).then((ok) => setHealth(ok ? 'online' : 'offline'))
@@ -47,30 +49,54 @@ export default function App() {
     })
   }
 
-  async function handleUpload(files) {
+  /** Upload + index a batch of files. Returns the stats object or null. */
+  async function indexFiles(files) {
     setUploading(true)
     setUploadProgress(0)
     try {
       const data = await uploadFiles(files, setUploadProgress)
       setStats(data)
       setReady(true)
-      toast.success(
-        `Indexed ${data.files} file${data.files > 1 ? 's' : ''} · ${data.chunks} chunks`,
-      )
+      toast.success(`${data.files} document${data.files > 1 ? 's' : ''} added · ${data.chunks} passages`)
+      return data
     } catch (err) {
+      if (err.status !== 429) captureError(err, 'upload')
       toast.error(err.message || 'Upload failed')
+      return null
     } finally {
       setUploading(false)
       setUploadProgress(0)
     }
   }
 
+  /* First-touch demo: load the bundled sample through the real upload API,
+     then ask a question — the product demonstrating itself. */
+  async function tryExample() {
+    if (exampleBusy || asking) return
+    setExampleBusy(true)
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}${DEMO_DOC_PATH}`)
+      if (!res.ok) throw new Error("Couldn't load the sample document.")
+      const file = new File([await res.text()], DEMO_DOC_NAME, {
+        type: 'text/markdown',
+      })
+      const data = await indexFiles([file])
+      if (data) handleAsk(DEMO_QUESTION)
+    } catch (err) {
+      toast.error(err.message || "Couldn't load the sample document.")
+    } finally {
+      setExampleBusy(false)
+    }
+  }
+
   async function handleAsk(question) {
     if (asking) return
+    const id = `m${++seqRef.current}`
     setMessages((prev) => [
       ...prev,
-      { role: 'user', content: question },
+      { id: `${id}u`, role: 'user', content: question },
       {
+        id,
         role: 'assistant',
         question,
         content: '',
@@ -102,8 +128,8 @@ export default function App() {
               }))
             } else if (d.stage === 'model_switched') {
               patchAssistant((m) => ({ ...m, fallback: true, switchedTo: d.to }))
-              toast.info('Switched to backup model', {
-                description: `${d.from} failed — continuing with ${d.to}.`,
+              toast.info('Switched to the backup model', {
+                description: `The main model didn't respond — ${d.to} is finishing the answer.`,
               })
             } else if (d.stage === 'no_answer') {
               patchAssistant((m) => ({ ...m, noAnswer: true }))
@@ -116,6 +142,9 @@ export default function App() {
           },
           onDone: () => patchAssistant({ streaming: false }),
           onError: (message) => {
+            // Provider pool exhausted etc. — the UI shows a bubble; we
+            // also want to hear about it in Sentry.
+            captureStreamError(message)
             patchAssistant((m) => ({
               ...m,
               streaming: false,
@@ -133,12 +162,25 @@ export default function App() {
     } catch (err) {
       if (err.name === 'AbortError') {
         patchAssistant((m) => ({ ...m, streaming: false }))
+      } else if (err.status === 429) {
+        // Rate limit is a normal conversational turn, not a failure —
+        // say "hold on a beat", don't paint it red.
+        patchAssistant((m) => ({
+          ...m,
+          streaming: false,
+          rateLimited: true,
+          content: err.retryAfter
+            ? `${err.message} (about ${err.retryAfter}s)`
+            : err.message,
+        }))
       } else {
+        captureError(err, 'query')
         patchAssistant((m) => ({
           ...m,
           streaming: false,
           error: true,
-          content: m.content || err.message || 'Something went wrong. Please try again.',
+          content:
+            m.content || "Couldn't reach the answer service. Try again in a moment.",
         }))
         toast.error(err.message || 'Query failed')
       }
@@ -148,20 +190,22 @@ export default function App() {
     }
   }
 
-  function openSource(source, query) {
-    setSourceQuery(query ?? '')
-    setActiveSource(source)
+  function openSource(source, message) {
+    setPanel({
+      source,
+      question: message?.question ?? '',
+      // Must match MessageBubble's layoutId: `cite-<messageId>-<sourceId>`
+      morphKey: message ? `cite-${message.id}-${source.id}` : null,
+    })
   }
 
   return (
-    <div className="relative min-h-screen">
-      <AuroraBackground />
+    <div className="flex min-h-screen flex-col">
       <Navbar health={health} />
-      <Hero />
 
-      <main className="mx-auto grid max-w-6xl gap-6 px-5 pb-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-stretch">
+      <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-5 py-10 lg:grid-cols-[21rem_minmax(0,1fr)] lg:px-8">
         <UploadZone
-          onUpload={handleUpload}
+          onUpload={indexFiles}
           uploading={uploading}
           uploadProgress={uploadProgress}
           stats={stats}
@@ -172,6 +216,8 @@ export default function App() {
           onAsk={handleAsk}
           asking={asking}
           ready={ready}
+          exampleBusy={exampleBusy}
+          onTryExample={tryExample}
           onOpenSource={openSource}
         />
       </main>
@@ -179,9 +225,10 @@ export default function App() {
       <Footer />
 
       <SourcePanel
-        source={activeSource}
-        query={sourceQuery}
-        onClose={() => setActiveSource(null)}
+        source={panel?.source ?? null}
+        query={panel?.question}
+        morphKey={panel?.morphKey}
+        onClose={() => setPanel(null)}
       />
     </div>
   )

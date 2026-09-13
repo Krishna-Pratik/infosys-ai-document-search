@@ -1,0 +1,79 @@
+<!doctype html>
+<!-- OG share card source — 1200×630. Rendered to public/og.png by make-og.mjs.
+     Identity: graphite ground + indigo accent + warm "paper" document surface,
+     Source Serif 4 for the product voice (same tokens as the app). -->
+<html>
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    background-color: #07080f;
+    background-image: radial-gradient(720px 360px at 50% -14%, rgba(99,102,241,.14), transparent);
+    font-family: 'Inter', sans-serif;
+    color: #f3f4f6;
+    display: flex; align-items: center;
+    padding: 56px 64px; gap: 56px;
+  }
+  .left { flex: 1.05; display: flex; flex-direction: column; justify-content: center; gap: 22px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand img { width: 52px; height: 52px; border-radius: 12px; }
+  .brand span { font-family: 'Source Serif 4', serif; font-size: 30px; font-weight: 600; letter-spacing: -.01em; }
+  h1 {
+    font-family: 'Source Serif 4', serif; font-weight: 600;
+    font-size: 58px; line-height: 1.12; letter-spacing: -.015em;
+  }
+  h1 em { color: #818cf8; font-style: normal; }
+  .sub { font-size: 21px; line-height: 1.55; color: #94a3b8; max-width: 46ch; }
+  .pill {
+    margin-top: 6px; align-self: flex-start;
+    font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #8b94a7;
+    border: 1px solid #1e2538; border-radius: 999px; padding: 8px 16px;
+  }
+  .pill b { color: #34d399; font-weight: 500; }
+  .right { flex: .95; display: flex; flex-direction: column; gap: 14px; justify-content: center; }
+  .q {
+    align-self: flex-end; max-width: 430px;
+    background: #12162a; border: 1px solid #1e2538; border-radius: 14px 14px 3px 14px;
+    padding: 14px 18px; font-size: 17px; color: #f3f4f6;
+  }
+  .a {
+    background: #12162a; border: 1px solid #1e2538; border-radius: 14px 14px 14px 3px;
+    padding: 16px 18px; font-family: 'Source Serif 4', serif;
+    font-size: 17px; line-height: 1.62; color: #eae6dc;
+  }
+  .a mark {
+    background: rgba(99,102,241,.28); color: #eef2ff;
+    padding: 1px 6px; border-radius: 5px;
+  }
+  .cite {
+    display: inline-block; font-family: 'Inter', sans-serif; font-size: 13px;
+    color: #c7d2fe; border: 1px solid rgba(99,102,241,.5); border-radius: 999px;
+    padding: 2px 10px; margin-left: 8px; vertical-align: 2px; background: rgba(99,102,241,.12);
+  }
+  .src {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13.5px; color: #8b94a7;
+  }
+  .src i { width: 18px; height: 18px; border-radius: 5px; background: #eae6dc; flex: none; }
+  .src b { color: #94a3b8; font-weight: 500; }
+</style>
+</head>
+<body>
+  <div class="left">
+    <div class="brand"><img src="logo.svg" /><span>NeuralDocs</span></div>
+    <h1>Answers that <em>cite</em><br />your documents.</h1>
+    <p class="sub">Upload a PDF, then ask. Retrieval over your own files — every claim links back to the exact passage it came from, with similarity-gated grounding instead of model guesses.</p>
+    <div class="pill"><b>●</b>&nbsp; FastAPI · Gemini embeddings · FAISS · streaming SSE · React 19</div>
+  </div>
+  <div class="right">
+    <div class="q">What action items were agreed in the retro?</div>
+    <div class="a">The team committed to <mark>rotating the on-call pager weekly and adding a rollback rehearsal to release checklist</mark><span class="cite">[1] p.4</span></div>
+    <div class="src"><i></i><b>postmortem-2025-08.pdf</b> — matched passage, similarity 0.86</div>
+  </div>
+</body>
+</html>
