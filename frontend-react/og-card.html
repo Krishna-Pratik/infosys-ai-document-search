@@ -1,69 +1,128 @@
 <!doctype html>
 <!-- OG share card source — 1200×630. Rendered to public/og.png by make-og.mjs.
-     Identity: graphite ground + indigo accent + warm "paper" document surface,
-     Source Serif 4 for the product voice (same tokens as the app). -->
+     Identity: deep-space ground (#06070d) + aurora blobs + grid texture,
+     Inter extrabold headline with the indigo→cyan→violet gradient clip —
+     same tokens as the live hero (src/index.css, AuroraBackground.jsx). -->
 <html>
 <head>
 <meta charset="utf-8" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
   * { margin: 0; box-sizing: border-box; }
   html, body { width: 1200px; height: 630px; overflow: hidden; }
   body {
-    background-color: #07080f;
-    background-image: radial-gradient(720px 360px at 50% -14%, rgba(99,102,241,.14), transparent);
+    position: relative;
+    background-color: #06070d;
     font-family: 'Inter', sans-serif;
     color: #f3f4f6;
     display: flex; align-items: center;
     padding: 56px 64px; gap: 56px;
   }
-  .left { flex: 1.05; display: flex; flex-direction: column; justify-content: center; gap: 22px; }
+  /* AuroraBackground: blurred blobs + masked grid texture */
+  .bg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .bg .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(99,102,241,.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(99,102,241,.07) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 40%, transparent 100%);
+    mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 40%, transparent 100%);
+  }
+  .blob { position: absolute; border-radius: 50%; }
+  .blob.a { top: -220px; left: -160px; width: 640px; height: 576px; background: rgba(99,102,241,.25); filter: blur(120px); }
+  .blob.b { top: -120px; right: -80px; width: 520px; height: 520px; background: rgba(34,211,238,.20); filter: blur(120px); }
+  .blob.c { bottom: -260px; left: 34%; width: 600px; height: 600px; background: rgba(168,85,247,.20); filter: blur(130px); }
+  .fade {
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, transparent 0%, rgba(6,7,13,.4) 50%, #06070d 100%);
+  }
+  .left { position: relative; flex: 1.05; display: flex; flex-direction: column; justify-content: center; gap: 22px; }
+  .right { position: relative; flex: .95; display: flex; flex-direction: column; gap: 14px; justify-content: center; }
   .brand { display: flex; align-items: center; gap: 14px; }
   .brand img { width: 52px; height: 52px; border-radius: 12px; }
-  .brand span { font-family: 'Source Serif 4', serif; font-size: 30px; font-weight: 600; letter-spacing: -.01em; }
+  .brand span { font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
   h1 {
-    font-family: 'Source Serif 4', serif; font-weight: 600;
-    font-size: 58px; line-height: 1.12; letter-spacing: -.015em;
+    font-weight: 800;
+    font-size: 58px; line-height: 1.1; letter-spacing: -.03em;
   }
-  h1 em { color: #818cf8; font-style: normal; }
+  h1 em {
+    font-style: normal;
+    background: linear-gradient(120deg, #818cf8 0%, #22d3ee 50%, #a855f7 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
   .sub { font-size: 21px; line-height: 1.55; color: #94a3b8; max-width: 46ch; }
+  /* Badge.jsx: rounded-full, brand-tinted border + fill + text */
   .pill {
     margin-top: 6px; align-self: flex-start;
-    font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #8b94a7;
-    border: 1px solid #1e2538; border-radius: 999px; padding: 8px 16px;
+    font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #818cf8;
+    border: 1px solid rgba(99,102,241,.25); border-radius: 999px; padding: 8px 16px;
+    background: rgba(99,102,241,.10);
   }
   .pill b { color: #34d399; font-weight: 500; }
-  .right { flex: .95; display: flex; flex-direction: column; gap: 14px; justify-content: center; }
+  .row { display: flex; gap: 12px; align-items: flex-end; }
+  .row.end { flex-direction: row-reverse; align-items: flex-start; }
+  .ava {
+    flex: none; width: 34px; height: 34px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 600;
+  }
+  .ava.user { background: rgba(99,102,241,.2); color: #818cf8; }
+  .ava.bot { background: linear-gradient(135deg, #6366f1, #22d3ee); color: #fff; }
   .q {
-    align-self: flex-end; max-width: 430px;
-    background: #12162a; border: 1px solid #1e2538; border-radius: 14px 14px 3px 14px;
+    flex: 1; max-width: 430px; margin-left: auto; text-align: left;
+    background: rgba(99,102,241,.15); border: 1px solid rgba(99,102,241,.2);
+    border-radius: 14px 4px 14px 14px;
     padding: 14px 18px; font-size: 17px; color: #f3f4f6;
   }
+  /* Assistant bubble: MessageBubble's surface/70 + border, text-ink/90 */
   .a {
-    background: #12162a; border: 1px solid #1e2538; border-radius: 14px 14px 14px 3px;
-    padding: 16px 18px; font-family: 'Source Serif 4', serif;
-    font-size: 17px; line-height: 1.62; color: #eae6dc;
+    flex: 1.4;
+    background: rgba(14,19,34,.7); border: 1px solid #1c2336; border-radius: 4px 14px 14px 14px;
+    padding: 16px 18px;
+    font-size: 17px; line-height: 1.62; color: rgba(243,244,246,.92);
   }
   .a mark {
     background: rgba(99,102,241,.28); color: #eef2ff;
     padding: 1px 6px; border-radius: 5px;
   }
+  /* CitationChip.jsx: small brand-bordered chip */
   .cite {
-    display: inline-block; font-family: 'Inter', sans-serif; font-size: 13px;
-    color: #c7d2fe; border: 1px solid rgba(99,102,241,.5); border-radius: 999px;
-    padding: 2px 10px; margin-left: 8px; vertical-align: 2px; background: rgba(99,102,241,.12);
+    display: inline-block; font-size: 12px; font-weight: 600;
+    color: #818cf8; border: 1px solid rgba(99,102,241,.4); background: rgba(99,102,241,.15);
+    border-radius: 6px;
+    padding: 1px 8px; margin-left: 8px; vertical-align: 2px;
   }
+  /* Sources chip: rounded-lg border-border bg-surface/60 */
   .src {
-    display: flex; align-items: center; gap: 10px;
+    align-self: flex-start; margin-left: 46px;
+    display: inline-flex; align-items: center; gap: 10px;
     font-size: 13.5px; color: #8b94a7;
+    background: rgba(14,19,34,.6); border: 1px solid #1c2336; border-radius: 10px;
+    padding: 7px 12px;
   }
-  .src i { width: 18px; height: 18px; border-radius: 5px; background: #eae6dc; flex: none; }
+  .src i {
+    width: 18px; height: 18px; border-radius: 5px; flex: none;
+    background: rgba(99,102,241,.2); color: #818cf8;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; font-style: normal;
+  }
   .src b { color: #94a3b8; font-weight: 500; }
 </style>
 </head>
 <body>
+  <div class="bg">
+    <div class="grid"></div>
+    <div class="blob a"></div>
+    <div class="blob b"></div>
+    <div class="blob c"></div>
+    <div class="fade"></div>
+  </div>
   <div class="left">
     <div class="brand"><img src="logo.svg" /><span>NeuralDocs</span></div>
     <h1>Answers that <em>cite</em><br />your documents.</h1>
@@ -71,9 +130,15 @@
     <div class="pill"><b>●</b>&nbsp; FastAPI · Gemini embeddings · FAISS · streaming SSE · React 19</div>
   </div>
   <div class="right">
-    <div class="q">What action items were agreed in the retro?</div>
-    <div class="a">The team committed to <mark>rotating the on-call pager weekly and adding a rollback rehearsal to release checklist</mark><span class="cite">[1] p.4</span></div>
-    <div class="src"><i></i><b>postmortem-2025-08.pdf</b> — matched passage, similarity 0.86</div>
+    <div class="row end">
+      <div class="q">What action items were agreed in the retro?</div>
+      <span class="ava user">&#9786;</span>
+    </div>
+    <div class="row">
+      <span class="ava bot">&#9673;</span>
+      <div class="a">The team committed to <mark>rotating the on-call pager weekly and adding a rollback rehearsal to release checklist</mark><span class="cite">[1] p.4</span></div>
+    </div>
+    <div class="src"><i>1</i><b>postmortem-2025-08.pdf</b> — matched passage, similarity 0.86</div>
   </div>
 </body>
 </html>
