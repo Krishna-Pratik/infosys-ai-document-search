@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { AuroraBackground } from '@/components/AuroraBackground'
 import { Navbar } from '@/components/Navbar'
 import { Hero } from '@/components/Hero'
+import { Features } from '@/components/Features'
 import { UploadZone } from '@/components/UploadZone'
 import { ChatPanel } from '@/components/ChatPanel'
 import { Footer } from '@/components/Footer'
@@ -200,6 +201,8 @@ export default function App() {
           onOpenSource={openSource}
         />
       </main>
+
+      <Features />
 
       <Footer />
 

@@ -1,4 +1,4 @@
-import { Star, Sparkles, Circle } from 'lucide-react'
+import { Star, Sparkles, Circle, LayoutGrid } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
@@ -37,6 +37,13 @@ export function Navbar({ health }) {
 
         <div className="flex items-center gap-3">
           <HealthDot status={health} />
+          <a
+            href="#features"
+            className="flex h-9 items-center gap-2 rounded-lg border border-border px-3 text-sm text-muted transition-colors hover:border-brand-500/50 hover:text-ink"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            <span className="hidden sm:inline">Features</span>
+          </a>
           <a
             href="https://github.com/Krishna-Pratik/infosys-ai-document-search"
             target="_blank"
