@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -9,6 +10,7 @@ import {
   SearchX,
   RefreshCcw,
   Clock,
+  ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -109,6 +111,8 @@ function Sources({ sources, onOpen }) {
 
 export function MessageBubble({ message, onOpenSource }) {
   const isUser = message.role === 'user'
+  // Sources stay hidden under a small button until the reader asks for them.
+  const [showSources, setShowSources] = useState(false)
   const mdComponents = {
     a: ({ href, children }) => {
       if (href?.startsWith('#cite-')) {
@@ -184,8 +188,26 @@ export function MessageBubble({ message, onOpenSource }) {
           </div>
         )}
 
-        {!isUser && !message.streaming && !message.error && (
-          <Sources sources={message.sources} onOpen={onOpenSource} />
+        {!isUser && !message.streaming && !message.error && message.sources?.length > 0 && (
+          <>
+            {/* Sources stay hidden behind a small pill (bottom-right of the
+                bubble) — the reader opts in before the list appears. */}
+            <div className="mt-1.5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowSources((v) => !v)}
+                aria-expanded={showSources}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface/60 px-2.5 py-1 text-[11px] font-medium text-muted transition-colors hover:border-brand-500/50 hover:text-ink"
+              >
+                <FileText className="h-3 w-3" />
+                {message.sources.length} source{message.sources.length > 1 ? 's' : ''}
+                <ChevronDown
+                  className={cn('h-3 w-3 transition-transform', showSources && 'rotate-180')}
+                />
+              </button>
+            </div>
+            {showSources && <Sources sources={message.sources} onOpen={onOpenSource} />}
+          </>
         )}
       </div>
     </motion.div>
