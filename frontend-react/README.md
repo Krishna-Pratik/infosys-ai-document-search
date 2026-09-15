@@ -30,7 +30,7 @@ The UI calls three endpoints (base URL = `VITE_API_URL`):
 | ------ | --------- | ----------------------------- | ----------------------------------------- |
 | GET    | `/health` | —                             | `{ status: "ok" \| "starting" \| "degraded", vectorstore, providers, sentry }` |
 | POST   | `/upload` | `multipart/form-data` `files` | `{ files, pages, chunks }`                |
-| POST   | `/query`  | `{ question }`                | `{ answer, sources: [{ page, content }]}` |
+| POST   | `/query/stream` | `{ question }`            | SSE: `status` / `sources` / `token` / `done` / `error` events |
 
 ## Local development
 
@@ -69,7 +69,7 @@ npm run preview      # preview the production build
 1. Push the repo to GitHub.
 2. **vercel.com → Add New → Project** → import the repo.
 3. **Root Directory:** `frontend-react`
-4. Framework preset auto-detects **Vite** (config also in `vercel.json`).
+4. Framework preset auto-detects **Vite** (config in the repository-root `vercel.json`).
 5. **Environment Variables:**
    ```
    VITE_API_URL = https://<your-backend>.onrender.com
@@ -84,7 +84,7 @@ npm run preview      # preview the production build
 
 ```
  Browser ──→ Vercel (this app, static)
-                │  fetch(VITE_API_URL + /upload | /query | /health)
+                │  fetch(VITE_API_URL + /upload | /query/stream | /health)
                 ▼
             Render (FastAPI + LangChain + FAISS + Gemini)
 ```

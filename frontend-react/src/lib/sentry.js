@@ -15,7 +15,7 @@ import * as Sentry from '@sentry/react'
 
 const DSN = import.meta.env.VITE_SENTRY_DSN
 
-export const sentryEnabled = Boolean(DSN)
+const sentryEnabled = Boolean(DSN)
 
 if (sentryEnabled) {
   Sentry.init({

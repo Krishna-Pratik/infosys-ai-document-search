@@ -90,7 +90,7 @@ class RagPipeline:
 
       status     {"stage": "searching"}                          retrieval started
       status     {"stage": "no_answer", "top_score": float}      nothing relevant
-      sources    {"docs": [{id, file, page, score, content}...]} retrieval done
+      sources    {"docs": [{id, file, page, score, excerpt}...]} retrieval done
       status     {"stage": "generating", "model", "fallback"}    LLM call started
       status     {"stage": "model_switched", "from", "to"}       failover happened
       token      {"text": str}                                   answer token
@@ -139,7 +139,6 @@ class RagPipeline:
                 "file": os.path.basename(doc.metadata.get("source", "document")),
                 "page": doc.metadata.get("page", "N/A"),
                 "score": round(score, 3),
-                "content": doc.page_content,
                 "excerpt": doc.page_content[:EXCERPT_CHARS],
             }
             for i, (doc, score) in enumerate(kept)
@@ -147,8 +146,8 @@ class RagPipeline:
         yield {"event": "sources", "data": {"docs": docs_meta}}
 
         context = "\n\n---\n\n".join(
-            f"[{d['id']}] {d['file']} (page {d['page']})\n{d['content']}"
-            for d in docs_meta
+            f"[{meta['id']}] {meta['file']} (page {meta['page']})\n{doc.page_content}"
+            for meta, (doc, _) in zip(docs_meta, kept)
         )
 
         # ---- Stage 2: generation with provider failover ----
@@ -177,13 +176,10 @@ class RagPipeline:
 
                 chain = PROMPT | llm | StrOutputParser()
 
-                started = False
-                answer_parts = []
                 for chunk in chain.stream({"context": context, "input": question}):
                     if not chunk:
                         continue
                     started = True
-                    answer_parts.append(chunk)
                     yield {"event": "token", "data": {"text": chunk}}
 
                 log_event("info", "generation_completed", model=active_model)

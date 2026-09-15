@@ -232,31 +232,6 @@ async def query_stream(request: Request, req: QueryRequest):
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
-@app.post("/query")
-@limiter.limit(QUERY_LIMIT)
-async def query(request: Request, response: Response, req: QueryRequest):
-    """Non-streaming fallback (kept for compatibility). Aggregates the SSE events."""
-    pipeline = _ensure_chain()
-    answer = ""
-    docs_meta = []
-    error = None
-    for ev in pipeline.stream(req.question):
-        if ev["event"] == "token":
-            answer += ev["data"]["text"]
-        elif ev["event"] == "sources":
-            docs_meta = ev["data"]["docs"]
-        elif ev["event"] == "error":
-            error = ev["data"]["message"]
-        elif ev["event"] == "status" and ev["data"].get("stage") == "no_answer":
-            answer = "I cannot find this in the document."
-    if error:
-        return {"answer": error, "sources": []}
-    sources = [
-        {"id": d["id"], "page": d["page"], "content": d["excerpt"][:200]}
-        for d in docs_meta
-    ]
-    return {"answer": answer, "sources": sources}
-
 # ------------------------------------------------------------------
 # HEALTH — real "can we serve queries" checks, cached 60s so Render's
 # health-check polling doesn't hammer the providers. Always HTTP 200

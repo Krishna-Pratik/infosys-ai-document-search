@@ -184,9 +184,9 @@ Tip: Keep screenshots in consistent resolution (1280×900) for a premium look.
         React + Vite frontend (chat UI, upload zone, API client in src/lib/api.js)
 - backend/  
         FastAPI application:
-        - main.py — API endpoints: POST /upload, POST /query, GET /health
+        - main.py — API endpoints: POST /upload, POST /query/stream, GET /health
         - utils/ — modular pipeline:
-            - loader.py, splitter.py, embeddings.py, rag_chain.py, model_manager.py, hash_utils.py
+            - loader.py, splitter.py, embeddings.py, rag_chain.py, model_manager.py
         - requirements.txt — Python dependencies
         - .env — API keys (never committed)
 - vercel.json  
@@ -226,7 +226,7 @@ The app is two services: a FastAPI backend and a React frontend.
 
 ### 4) Use the app
 - Upload documents via the UI (POST /upload re-indexes the vector store).
-- Ask questions in the chat panel (POST /query returns a grounded answer + sources).
+- Ask questions in the chat panel (POST /query/stream streams a grounded answer + sources over SSE).
 
 ---
 

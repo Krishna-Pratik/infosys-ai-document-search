@@ -14,30 +14,20 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-/* Turn inline [n] / [1, 2] markers into anchor links the custom <a>
-   renderer converts into clickable citation chips. Markers referencing
-   unknown sources are left as plain text. */
-function withCitationLinks(content, sourceCount) {
+/* The answer text carries [1] / [2, 3] citation markers from the model.
+   They clutter the prose, so strip the ones that reference a known
+   source — the sources live behind the pill under the bubble instead.
+   Markers pointing at unknown sources are left as plain text. */
+function stripCitationMarkers(content, sourceCount) {
   if (!sourceCount) return content
-  return content.replace(/\[(\d{1,2}(?:\s*[,–-]\s*\d{1,2})*)\]/g, (m, group) => {
-    const nums = group.split(/[,–-]/).map((s) => Number(s.trim()))
-    if (!nums.length || nums.some((k) => !(k >= 1 && k <= sourceCount))) return m
-    const links = nums.map((n) => `[${n}](#cite-${n})`).join(' ')
-    return links
-  })
-}
-
-function CitationChip({ n, source, onOpen }) {
-  return (
-    <button
-      type="button"
-      onClick={() => source && onOpen(source)}
-      title={source ? `${source.file} · page ${source.page}` : 'Source'}
-      className="mx-0.5 inline-flex h-5 min-w-5 -translate-y-px items-center justify-center rounded-md border border-brand-500/40 bg-brand-500/15 px-1.5 align-baseline text-[10px] font-semibold leading-none text-brand-400 transition-colors hover:border-brand-400 hover:bg-brand-500/30 hover:text-ink"
-    >
-      {n}
-    </button>
-  )
+  return content
+    .replace(/[ \t]*\[(\d{1,2}(?:\s*[,–-]\s*\d{1,2})*)\]/g, (m, group) => {
+      const nums = group.split(/[,–-]/).map((s) => Number(s.trim()))
+      if (!nums.length || nums.some((k) => !(k >= 1 && k <= sourceCount))) return m
+      return ''
+    })
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+([.,;:!?])/g, '$1')
 }
 
 function StageIndicator({ stage }) {
@@ -114,18 +104,11 @@ export function MessageBubble({ message, onOpenSource }) {
   // Sources stay hidden under a small button until the reader asks for them.
   const [showSources, setShowSources] = useState(false)
   const mdComponents = {
-    a: ({ href, children }) => {
-      if (href?.startsWith('#cite-')) {
-        const n = Number(href.slice(6))
-        const source = message.sources?.find((s) => s.id === n)
-        return <CitationChip n={n} source={source} onOpen={onOpenSource} />
-      }
-      return (
-        <a href={href} target="_blank" rel="noreferrer">
-          {children}
-        </a>
-      )
-    },
+    a: ({ href, children }) => (
+      <a href={href} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    ),
   }
 
   return (
@@ -173,7 +156,7 @@ export function MessageBubble({ message, onOpenSource }) {
           ) : (
             <div className="prose-chat">
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                {withCitationLinks(message.content, message.sources?.length)}
+                {stripCitationMarkers(message.content, message.sources?.length)}
               </ReactMarkdown>
               {message.streaming && <span className="stream-caret" aria-hidden="true" />}
             </div>
@@ -190,13 +173,12 @@ export function MessageBubble({ message, onOpenSource }) {
 
         {!isUser && !message.streaming && !message.error && message.sources?.length > 0 && (
           <>
-            {/* Sources stay hidden behind a small pill (bottom-right of the
-                bubble) — the reader opts in before the list appears. */}
             <div className="mt-1.5 flex justify-end">
               <button
                 type="button"
                 onClick={() => setShowSources((v) => !v)}
                 aria-expanded={showSources}
+                aria-label={showSources ? 'Hide sources' : 'Show sources'}
                 className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface/60 px-2.5 py-1 text-[11px] font-medium text-muted transition-colors hover:border-brand-500/50 hover:text-ink"
               >
                 <FileText className="h-3 w-3" />

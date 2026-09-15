@@ -3,7 +3,6 @@ uvicorn==0.32.0
 python-multipart==0.0.12
 python-dotenv==1.2.1
 
-langchain==1.2.7
 langchain-core==1.2.7
 langchain-community==0.4.1
 
