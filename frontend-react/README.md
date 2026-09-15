@@ -69,7 +69,7 @@ npm run preview      # preview the production build
 1. Push the repo to GitHub.
 2. **vercel.com → Add New → Project** → import the repo.
 3. **Root Directory:** `frontend-react`
-4. Framework preset auto-detects **Vite** (config in the repository-root `vercel.json`).
+4. Framework preset auto-detects **Vite** (config also in `vercel.json`).
 5. **Environment Variables:**
    ```
    VITE_API_URL = https://<your-backend>.onrender.com
